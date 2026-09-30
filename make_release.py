@@ -6,8 +6,8 @@ files=[]
 for path in sorted(root.rglob('*')):
     rel=path.relative_to(root)
     if not path.is_file() or any(p in ('.git','__pycache__') for p in rel.parts):continue
-    if path.name in ('MANIFEST.json','board-config.json') or str(rel)=='board/config.json':continue
-    if path.suffix in ('.pyc','.gz','.zip','.log'):continue
+    if path.name in ('MANIFEST.json','board-config.json','test_unpack') or str(rel)=='board/config.json':continue
+    if path.suffix in ('.pyc','.gz','.zip','.log','.o'):continue
     files.append(path)
 manifest={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
 (root/'MANIFEST.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')

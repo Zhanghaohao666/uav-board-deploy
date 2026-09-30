@@ -5,3 +5,5 @@ board/config.json
 *.tar.gz
 *.zip
 *.log
+algorithm/mino17-source/test_unpack
+algorithm/mino17-source/*.o
