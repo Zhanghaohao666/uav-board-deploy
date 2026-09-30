@@ -1,0 +1,14 @@
+﻿这是新版电脑端控制入口，只调用主控 /opt/uav-switch/manager.py。
+不会调用旧 start_gimbal_master.sh，不会批量 pkill 视频程序。
+
+Windows 用法：
+1. 将旧 start_full_link.py 改名留作备份，不要再运行旧文件。
+2. 把此目录的 start_full_link.py 放入原位置。它是独立文件，无需旧项目其他目录。
+3. 如缺少 paramiko，执行：python -m pip install -r requirements.txt。
+4. 双击 启动切换工具.bat，或运行 python start_full_link.py。
+5. 输入主控 SSH 密码，菜单选择 4 查看状态、5 验证出图。
+   只有选择 1/2/3 并确认才切换方案；选择 6 才保存为开机默认。
+
+当前主控 192.168.1.104 的当前/开机默认均是 dual（双网口并行测试）。
+主控已经开机自启，正常使用只需地面站拉流，不需要电脑再启动一遍推流。
+本文件没有自动复制到你的 Windows D 盘；需将本包下载/复制过去。

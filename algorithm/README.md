@@ -1,4 +1,4 @@
-# 算法板纯视频一键配置（v1.1.0）
+# 算法板纯视频一键配置（v1.1.1）
 
 适用于与当前算法板相同的 RK3588 ARM64 厂家 BSP：两路 CR200 MIPI 相机已能提供 1920×1080 NV12，系统具备 MPP/RGA 硬件编码库。USB Mino17 红外可选。**本工具只负责网络、采集、推流和开机自启，不安装检测/跟踪算法，不提供 TCP 9000 控制服务。**
 
@@ -7,7 +7,7 @@
 先接好两路可见光相机、板间网线，并让新板能访问 GitHub 下载地址及系统软件源。在新算法板终端运行（普通用户默认 `dev`）：
 
 ```bash
-bash <(curl -fsSL -H 'Accept: application/vnd.github.raw+json' 'https://api.github.com/repos/Zhanghaohao666/uav-board-deploy/contents/bootstrap.sh?ref=v1.1.0') --repo Zhanghaohao666/uav-board-deploy --ref v1.1.0 --role algorithm --user dev
+bash <(curl -fsSL -H 'Accept: application/vnd.github.raw+json' 'https://api.github.com/repos/Zhanghaohao666/uav-board-deploy/contents/bootstrap.sh?ref=v1.1.1') --repo Zhanghaohao666/uav-board-deploy --ref v1.1.1 --role algorithm --user dev
 ```
 
 可离线复制**完整仓库/发布包**到新板，再运行：
