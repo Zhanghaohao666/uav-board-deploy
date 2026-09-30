@@ -1,0 +1,18 @@
+[Unit]
+Description=UAV switch component %i
+PartOf=uav-switch-boot.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=dev
+SupplementaryGroups=video render
+WorkingDirectory=/opt/uav-switch
+Environment=LD_LIBRARY_PATH=/opt/uav-switch/lib
+ExecStart=/usr/bin/python3 /opt/uav-switch/manager.py worker %i
+Restart=always
+RestartSec=5
+TimeoutStopSec=10
+KillMode=control-group
+StandardOutput=journal
+StandardError=journal

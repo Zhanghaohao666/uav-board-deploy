@@ -1,0 +1,14 @@
+{
+  "default_mode": "dual",
+  "payload_iface": "eth0",
+  "extension_iface": "eth2",
+  "mk22_iface": "eth1",
+  "mk22_address": "192.168.2.36/24",
+  "service_user": "dev",
+  "board_camera": "/dev/v4l/by-path/platform-rkcif-mipi-lvds2-video-index0",
+  "d455_enabled": true,
+  "d455_depth_enabled": false,
+  "d455_rgb": "/dev/v4l/by-id/REPLACE_WITH_THIS_CAMERA",
+  "d455_depth": "",
+  "ffmpeg_timeout_option": "-stimeout"
+}

@@ -1,0 +1,16 @@
+[Unit]
+Description=Start saved UAV test mode
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/python3 /opt/uav-switch/manager.py boot
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=90
+
+[Install]
+WantedBy=multi-user.target

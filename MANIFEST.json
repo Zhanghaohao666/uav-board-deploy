@@ -1,0 +1,23 @@
+{
+  ".github/workflows/check.yml": "33717897b03fec48f40745fc8e50184a9c89878af770fe6d970580c8ccc32dad",
+  ".gitignore": "fc91fe454aebccb2a338b66a5160114853a1c58fc0dac4fe5049707fb4e950f2",
+  "CHANGELOG.md": "ec972c79c92248be7606a704d35bc99fd620e90c621f6543bb7093726f27966a",
+  "README.md": "2186751c2477c831d05e406be55d9348c1c392fd89f2480764be174a82cf7863",
+  "board/bin/rk_streamer": "69ad4f397f22fcde20a4b4b7b21971e27c11daa309e8f8f5b503a688deb37ee4",
+  "board/bin/rtsp_relay_gimbal": "69fbdbca6601c5e61efcfb30b3f8265a776d452bb87fee35d023ecac8dd2df58",
+  "board/bin/rtsp_relay_mino17": "4f9738977033fa3f5c548b605d5fccb0d1ae35c6744b9094d4bebda6b233d6a4",
+  "board/board_menu.py": "14027f2a9116a3bf23a8d08dc1a690f9427bea6aada31864e5b24d2bb38eafed",
+  "board/lib/libopencv_core.so.3.4": "2ccb0632edbd16629300145fb051f204df7164c2ba421b96b91f7d7783feeaa7",
+  "board/lib/libopencv_imgproc.so.3.4": "084d2ba147834cbcb15d0e65fb247fca3655a40c4b1eb771528dac409e24dad3",
+  "board/manager.py": "98c67f6e8255b20336094596c44dc12e82e5f33e766509ead259cf23a647dc1b",
+  "board/uav-switch-boot.service": "cfc0f1b0bacc71a009e6684370aa594ff4386f8a742e3767e58b86bbf8798b4a",
+  "board/uav-switch@.service": "76a226972e8c0f73fa6df91f56802d550ba3f807b33fcb137344416c45fecfa5",
+  "board/uav_switch.sh": "92f1450f3736ccbea7f6acbeb7f815f0ec691e5e01fd836723a3ee3ded1c3027",
+  "bootstrap.sh": "6abc9bf3e98c14acd7c7fbc472f386b4170ae952a12b540e077f2cd559d537ab",
+  "config.example.json": "0182a90c190fa48bdb0ad88c576a6316e4304d48fcee3b4805e30a5a0c4c325b",
+  "install.py": "85ae11049bd598d8ecfd3aee0b073a131db8360ed84c91650b943a2b3bc5a39f",
+  "install.sh": "258e3b8dd9bc02e3b3720e8935077cce47cda4226ef0757a6df3a6685cc6af4a",
+  "make_release.py": "72ddff152df26513d2fa934c966d69eff2350a9b90beacaad16e1d744fe57321",
+  "tests/test_install.py": "65088d30b56e3144bb96095af175286f47890bb5197de575c0cd3af83a0ef086",
+  "tests/test_manager.py": "036ec6b5d314bbeab87551ca0bdf4ccc114a0595c815f3edd88a22b37e885ccf"
+}

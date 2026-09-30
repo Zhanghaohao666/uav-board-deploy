@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+board-config.json
+board/config.json
+*.tar.gz
+*.zip
+*.log

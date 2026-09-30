@@ -1,0 +1,14 @@
+name: Validate deployment bundle
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and unit tests (no installation)
+        run: |
+          bash -n install.sh bootstrap.sh
+          python3 -m unittest discover -s tests -v
+          python3 -c 'import install; install.verify_manifest()'
