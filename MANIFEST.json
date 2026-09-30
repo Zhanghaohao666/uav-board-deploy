@@ -2,7 +2,7 @@
   ".github/workflows/check.yml": "33717897b03fec48f40745fc8e50184a9c89878af770fe6d970580c8ccc32dad",
   ".gitignore": "fc91fe454aebccb2a338b66a5160114853a1c58fc0dac4fe5049707fb4e950f2",
   "CHANGELOG.md": "ec972c79c92248be7606a704d35bc99fd620e90c621f6543bb7093726f27966a",
-  "README.md": "2186751c2477c831d05e406be55d9348c1c392fd89f2480764be174a82cf7863",
+  "README.md": "690ff19062a4e5e7bbe3d08fd71ca8a6f115cb0299371c20decb20112d1c006f",
   "board/bin/rk_streamer": "69ad4f397f22fcde20a4b4b7b21971e27c11daa309e8f8f5b503a688deb37ee4",
   "board/bin/rtsp_relay_gimbal": "69fbdbca6601c5e61efcfb30b3f8265a776d452bb87fee35d023ecac8dd2df58",
   "board/bin/rtsp_relay_mino17": "4f9738977033fa3f5c548b605d5fccb0d1ae35c6744b9094d4bebda6b233d6a4",

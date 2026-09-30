@@ -36,6 +36,12 @@ sudo bash install.sh --mode dual --payload-iface eth0 --mk22-iface eth1 --extens
 bash <(curl -fsSL https://raw.githubusercontent.com/Zhanghaohao666/uav-board-deploy/v1.0.0/bootstrap.sh) --repo Zhanghaohao666/uav-board-deploy --ref v1.0.0
 ```
 
+如果板卡访问 `raw.githubusercontent.com` 超时，使用下面的 GitHub API 入口（当前主控已通过此入口下载并完成只读 doctor，未重启服务）：
+
+```bash
+bash <(curl -fsSL -H 'Accept: application/vnd.github.raw+json' 'https://api.github.com/repos/Zhanghaohao666/uav-board-deploy/contents/bootstrap.sh?ref=v1.0.0') --repo Zhanghaohao666/uav-board-deploy --ref v1.0.0
+```
+
 也可在命令后添加上文的 `--mode ... --mk22-iface ... --yes` 参数。入口下载完整仓库、检查路径和 SHA-256 清单，再执行安装程序；保留终端以供选择模式，不使用 `curl | bash`。
 
 私有仓库请使用自己的 GitHub SSH/凭据下载，不将 token 写进命令或本仓库：
