@@ -84,6 +84,15 @@ class AlgorithmTests(unittest.TestCase):
         with patch.object(r, 'inspect_camera', return_value=('missing', 'absent')):
             with self.assertRaisesRegex(ValueError, '缺少前视'):m.cameras(C, require_front=True)
 
+    def test_install_accepts_all_cameras_absent_and_enables_each_worker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            patches, runner, base, launcher, dropin = self.fixture_install(Path(tmp))
+            with patches, patch.object(m, 'assert_fresh'), patch.object(m, 'deps'), patch.object(m, 'check_network'), patch.object(r, 'inspect_camera', return_value=('missing', 'absent')), patch.object(r, 'addresses', return_value=[]), patch.object(r, 'run', side_effect=runner) as call:
+                m.install(C, 'digest', True)
+                enabled = [arg for c in call.call_args_list if c.args[0][:2] == ['systemctl', 'enable'] for arg in c.args[0][2:]]
+                for slot in r.SLOTS:
+                    self.assertIn('uav-algorithm@%s.service' % slot, enabled)
+
     def test_usb_uses_advertised_format_without_changing_current_mode(self):
         from types import SimpleNamespace
         info = "[0]: 'UYVY' (UYVY 4:2:2)\n Size: Discrete 1280x520\n[1]: 'MJPG'\n Size: Discrete 640x480\n"

@@ -1,4 +1,4 @@
-# 算法板纯视频一键配置（v1.1.1）
+# 算法板纯视频一键配置（v1.1.2）
 
 适用于与当前算法板相同的 RK3588 ARM64 厂家 BSP：两路 CR200 MIPI 相机已能提供 1920×1080 NV12，系统具备 MPP/RGA 硬件编码库。USB Mino17 红外可选。**本工具只负责网络、采集、推流和开机自启，不安装检测/跟踪算法，不提供 TCP 9000 控制服务。**
 
@@ -7,7 +7,7 @@
 先接好两路可见光相机、板间网线，并让新板能访问 GitHub 下载地址及系统软件源。在新算法板终端运行（普通用户默认 `dev`）：
 
 ```bash
-bash <(curl -fsSL -H 'Accept: application/vnd.github.raw+json' 'https://api.github.com/repos/Zhanghaohao666/uav-board-deploy/contents/bootstrap.sh?ref=v1.1.1') --repo Zhanghaohao666/uav-board-deploy --ref v1.1.1 --role algorithm --user dev
+bash <(curl -fsSL -H 'Accept: application/vnd.github.raw+json' 'https://api.github.com/repos/Zhanghaohao666/uav-board-deploy/contents/bootstrap.sh?ref=v1.1.2') --repo Zhanghaohao666/uav-board-deploy --ref v1.1.2 --role algorithm --user dev
 ```
 
 可离线复制**完整仓库/发布包**到新板，再运行：
@@ -66,6 +66,8 @@ Mino17 在已接入时按本机 `/dev/v4l/by-id/*Mino17*video-index0` 识别；�
 
 ## 开机过程与状态检查
 
+新板安装允许前视/红外缺席；已接相机仍检查格式，缺席只由对应服务等待重试。
+
 系统开机 → `uav-algorithm-network.service` 追加板间 IP/检查冲突 → 各自启动 `uav-algorithm@front1`、`@front2`、`@infrared`。相机缺席每 5 秒重试；连续 60 秒没有有效帧率报告时重启本路。三路独立，不运行跟踪、模型加载或云台控制。
 
 ```bash
@@ -87,7 +89,7 @@ sudo bash algorithm/install.sh doctor --user dev
 
 ## 验收与验证范围
 
-43 项 Python 自动测试通过（包含原主控 29 项）：覆盖端口/纯视频模式、设备别名冲突、IP/旋转参数、保留其他地址、重复 IP、网口子网冲突、USB 可选格式、红外缺席、旧服务及手动相机占用拒绝、无帧重试、安装回退、仅开机启用、重复安装与文件损坏检测。Mino17 解包 C 测试通过。
+48 项 Python 自动测试通过（包含原主控 29 项）：覆盖端口/纯视频模式、设备别名冲突、IP/旋转参数、保留其他地址、重复 IP、网口子网冲突、USB 可选格式、红外缺席、旧服务及手动相机占用拒绝、无帧重试、安装回退、仅开机启用、重复安装与文件损坏检测。Mino17 解包 C 测试通过。
 
 2026-09-30 在现有算法板做了只读检查：两路前视分别解析到 `/dev/video22`、`/dev/video0`，格式符合，动态库及程序 `--help` 检查通过；当时红外未接入。系统缺少 `arping`，检查时仅从审查目录临时提供该工具，未安装系统包、未发送 ARP，正式新板安装时会补齐该依赖。检测到旧的开机采集服务和手动运行的 `rk_streamer`，因此 doctor 正确拒绝第二套采集安装；原采集进程保持运行。
 
@@ -97,7 +99,34 @@ sudo bash algorithm/install.sh doctor --user dev
 2. 用主控或地面站**实际解码**三路 RTSP，确认画面、方向及帧率。服务 active、发送帧率正常并不保证接收端成功解码。
 3. 断电重启新板，再确认自动恢复；拔插红外验证独立恢复。
 
-当前开发验证没有替换或停止旧算法板的检测程序，也没有在其忙碌的相机上抢流。**新板实装、三路同时解码和断电自启仍需现场验证，不能据此声称已完成。**
+以上只读检查是 v1.1.0 新板安装器的验证记录。v1.1.2 另对现有算法板执行了下述迁移。新板全量安装及断电重启仍需现场验收。
+
+## 已有 TTTracker V1.1 算法板拆分
+
+此工具只支持已验证的 `/home/dev/test1/rk3588_streamer` 旧布局，严格检查原启动脚本和可执行文件 SHA-256；不同版本会拒绝迁移，不会猜测模型或库路径。检测跟踪仍使用原 TTTracker V1.1、模型和运行库。
+
+在算法板解压部署包后运行：
+
+```bash
+sudo python3 algorithm/migrate_existing.py          # 只读预检查
+sudo python3 algorithm/migrate_existing.py --apply  # 两路前视短暂重连
+```
+
+| 画面 | 独立服务 | 配置 | 发往主控 |
+| --- | --- | --- | --- |
+| 前视检测/跟踪 | `uav-front-algorithm.service` | `/etc/uav-front-streams/algorithm.env` | UDP 5602 |
+| 前视原始预览 | `uav-front-preview.service` | `/etc/uav-front-streams/preview.env` | UDP 5603 |
+| Mino17 红外 | 原 `mino17-streamer.service` | 原 `infrared.env` | UDP 5604 |
+
+两路前视各占用自己的相机，有各自的进程组、开机启用和 5 秒重试；连续 60 秒没有有效采集帧率时仅重启本路。原双路服务会禁用并屏蔽，原启动脚本替换为提示，避免手动运行旧脚本重复占用相机。红外原独立服务继续工作，地面站地址不变。程序/网络/共享驱动等系统级故障仍可能影响多路，独立服务不等于硬件资源完全隔离。
+
+备份位于工具输出的 `/var/backups/uav-front-streams/<时间>`。部署异常自动恢复原文件与启用状态；手动回退：
+
+```bash
+sudo python3 algorithm/migrate_existing.py --rollback /var/backups/uav-front-streams/<实际备份目录>
+```
+
+2026-09-30 已在现有算法板迁移并实际验证：分别把算法/预览服务的相机路径设为不存在的设备，另一路 PID 保持不变、RTSP 连续解码 5 帧；同时请求缺席 RTSP 不阻塞正常一路。恢复路径并重启对应服务后，两路均恢复解码。已检查各自开机 enabled，未整板重启、未带电拔插 MIPI。红外当时未识别，保持自行重试，没有阻止前视出图。云台双路仍在同一个云台程序中，不属于此迁移范围。
 
 ## 云台新板
 

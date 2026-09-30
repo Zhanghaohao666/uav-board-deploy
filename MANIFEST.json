@@ -1,12 +1,14 @@
 {
   ".github/workflows/check.yml": "697d5fa77865ed52a1cffbfd7310a7faef09818fc3ac12845048e5687827d904",
   ".gitignore": "116021626d95d1dc730aad89f6a98ece3fa0a13471f119fa53a5d9523649aea7",
-  "CHANGELOG.md": "b6e4333774783dd862158191804895b25355c50100454c6bd88cafe927b74fd9",
-  "README.md": "c43437fd27290e6240d47abb22fe898a1ed86ce85bf2acc823eebd34dc9fb697",
-  "algorithm/README.md": "7d23b7b3b463ee5b03db890efca9c82ed926c7a53f4a4e96bc9d49dc225b8204",
+  "CHANGELOG.md": "3b15c9d49a874ccd0b2a459f1349aa8d4a931c305c7d94cdd55e75078511e8d9",
+  "README.md": "dc6325664bf3f9f63d9cc7d88a78031f7c862d8cdafdcbffa4bcb1c30eb89300",
+  "algorithm/README.md": "4b27fb1bddbac4a0601023b3bc3e156f25c5a2082d875a298ef6d0e487690f53",
   "algorithm/bin/mino17_streamer": "a044670a469cb05a00d2a802cea2c728d0436234919e8d4f43534e7bba3c3691",
-  "algorithm/install.py": "96e4ea5a151a5d9f1b6f0b6319e09671332fdceecaa71bbe3824b7d5604c7a7a",
+  "algorithm/existing_front.py": "9831727ba33560ced1a3cb41874dd149d3f0de3411b3737eac5ccddade04a9bc",
+  "algorithm/install.py": "9b8159692bf9e9e167ec42413cc44d4ad5022fd015df6505821d53b8fb26b7e3",
   "algorithm/install.sh": "1e2e4eb093a4b7a699875ea80acbe61df97c6faaa3b18a70a60897443ad71b52",
+  "algorithm/migrate_existing.py": "cdc0c56fb562b8e0628cd37986b8cedeec4e6496c58a11519e8eee9fbbcdd55e",
   "algorithm/mino17-source/Makefile": "f364908dba09980e3c202667f9d74704601c07c511275e4d07057cc34d663a75",
   "algorithm/mino17-source/camera.c": "ceeeda2f71dbfafca1f3e73fd9257dfa0ce0fef39a18b5ee28c76c9758fb2d9e",
   "algorithm/mino17-source/camera.h": "8c9a00d183ce723c714a5329b7000747a871bd7f24431ed793e607b956307325",
@@ -41,7 +43,8 @@
   "pc/使用说明.txt": "57bce105e45325d80c62bcce2e29fc4b9f8f30ec1bbe269a5c5b9b15f60228bc",
   "pc/启动切换工具.bat": "6cc07a5adf059cdbad4f263745add62592b84fd4a058542a50b299787693ba94",
   "tests/rtsp_missing_source.py": "8e655db1032cd044be448f71f49dbf971eb66b82b17f94861803a5b5cea9b921",
-  "tests/test_algorithm.py": "c3c883227e18c913604a05113aaefd078d3890d8edc58c98ca6061a1f202aef4",
+  "tests/test_algorithm.py": "aada141b3c543210f57549d80487815fc949c07430d4a95ed9194d0cfdafa912",
+  "tests/test_existing_front.py": "a34e0fde1e287747cc993e15364f79ca29f9b8bf8580628422644082a3b6f1f7",
   "tests/test_install.py": "65088d30b56e3144bb96095af175286f47890bb5197de575c0cd3af83a0ef086",
   "tests/test_manager.py": "036ec6b5d314bbeab87551ca0bdf4ccc114a0595c815f3edd88a22b37e885ccf"
 }

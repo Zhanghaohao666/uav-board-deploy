@@ -24,7 +24,8 @@ FACTORY = 'downstream-static-proxy.service'
 DROPIN = UNITS / (FACTORY + '.d/90-uav-algorithm.conf')
 LAUNCHER = Path('/usr/local/bin/uav-algorithm')
 BACKUPS = Path('/var/backups/uav-algorithm')
-LEGACY = ('uav-front-cameras.service', 'mino17-streamer.service', 'uav-switch-boot.service')
+LEGACY = ('uav-front-cameras.service', 'uav-front-algorithm.service',
+          'uav-front-preview.service', 'mino17-streamer.service', 'uav-switch-boot.service')
 
 
 def parent_installer():
@@ -134,7 +135,7 @@ def cameras(c, require_front):
         print('%s [%s] %s' % (slot, state, detail))
         if state == 'missing' and require_front and slot != 'infrared':
             raise ValueError('缺少前视相机；请检查 --front1/--front2 与驱动')
-    print('红外缺席时其服务将等待重试，另外两路独立运行。')
+    print('缺席相机只影响自己的服务，其余各路独立启动；缺席的服务会等待重试。')
 
 
 def unit_texts(c):
@@ -195,7 +196,7 @@ def install(c, bundle_digest, no_start):
     assert_fresh(c)
     deps(install=True)
     check_network(c)
-    cameras(c, require_front=True)
+    cameras(c, require_front=False)
     network, worker, dropin = unit_texts(c)
     units = [NETWORK] + ['uav-algorithm@%s.service' % s for s in rt.SLOTS if c[s]['enabled']]
     original_ip = rt.has_address(c, rt.addresses())
