@@ -44,6 +44,10 @@ ffmpeg -i 输入.mkv -c copy 输出.mp4
 
 ## 安装及运行方式
 
+v1.3.0 新增配套地面站“板端录像”面板，开机启动 `uav-record-api.service`（9072），录像本身仍默认关闭。已有主控在完整包内执行 `sudo python3 install_record_api.py`；104 已安装。新主控完整安装也包含接口。
+
+地面站首次输入主控 IP 和 `sudo cat /etc/uav-record-api/token` 显示的本板连接码；MK22 `.36`，Wi-Fi `.104`。各板独立码，不公开发布。面板可多选、开始/追加、停止所选/全部，查询实际状态及路径；关闭地面站不停止录像。完整操作见 [地面站说明](https://github.com/Zhanghaohao666/uav-ground-station/blob/v1.01.09-board-recording/project-docs/BOARD_RECORDING.md)。
+
 v1.2.0 完整主控安装器已包含录像命令及 systemd 模板。算法板角色不安装本录像工具。现有已安装 uav-switch 的主控可复制完整包后单独执行：
 
 ```bash
@@ -78,5 +82,7 @@ sudo python3 install_recorder.py
 - 单独停止前视预览，其余录像继续；最终全部停止，原采集/转发进程 PID 保持不变。
 - 第 30 秒录像进程 RSS 合计约 372 MiB，`ps %cpu` 合计 27.5%，约 0.28 个 CPU 核心。此值是进程生命周期平均，含正在重连的缺流一路；RSS 加总可能重复计入共享页。
 - 这是短时功能和资源验收，未覆盖数小时写盘或录像期间断电；前视源时间戳存在间隔波动，录像保留原流时序。
+
+v1.3.0 另通过生产 Qt 控制器在 104 测试新 API：两路写帧、缺席红外独立等待、只停止预览后下视继续，最终本次各路停止。接口处于 enabled/active，原视频 PID 不变；63 项 Python 测试通过。
 
 摄像头视频与雷达原始点云可以分别保存，但本工具没有提供硬件同步时间戳。若用于严格的跨传感器对齐，需要后续配置时钟同步并保存传感器原始时间戳，不能只凭视频文件名对齐。

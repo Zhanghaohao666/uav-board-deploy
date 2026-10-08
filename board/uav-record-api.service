@@ -1,0 +1,18 @@
+[Unit]
+Description=Ground station control for on-demand UAV recording
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/uav-switch/record_http.py
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

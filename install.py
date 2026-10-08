@@ -198,6 +198,7 @@ def validate_config(c):
 def render_units(c):
     return {BOOT: (ROOT / 'board' / BOOT).read_text(),
             'uav-record@.service': (ROOT / 'board/uav-record@.service').read_text(),
+            'uav-record-api.service': (ROOT / 'board/uav-record-api.service').read_text(),
             TEMPLATE: (ROOT / 'board' / TEMPLATE).read_text().replace('User=dev\n', 'User=' + c['service_user'] + '\n')}
 
 
@@ -245,7 +246,7 @@ def doctor(c):
 
 
 def assert_fresh():
-    paths = [BASE, STATE, LAUNCHER, LAUNCHER.with_name('uav-record')] + [UNITS / name for name in (BOOT, TEMPLATE, 'uav-record@.service')]
+    paths = [BASE, STATE, LAUNCHER, LAUNCHER.with_name('uav-record')] + [UNITS / name for name in (BOOT, TEMPLATE, 'uav-record@.service', 'uav-record-api.service')]
     for path in paths:
         if path.exists() or path.is_symlink():
             raise ValueError('发现已有部署，保持原状：' + str(path) + '；切换请运行 uav-switch')
@@ -309,6 +310,8 @@ def install(c, start=True):
         print('相同版本与配置已经安装；保留现有服务和开机状态，不重复启动。')
         return
     assert_fresh()
+    if run(['fuser', '-n', 'tcp', '9072'], check=False).stdout.strip():
+        raise ValueError('录像控制端口 9072 已被其他程序占用')
     problems = doctor(c)
     if problems: raise ValueError('\n'.join(problems))
     manager.ownership_check(c, c['default_mode'])
@@ -343,8 +346,13 @@ def install(c, start=True):
         recorder_launcher.chmod(0o755)
         run(['systemd-analyze', 'verify'] + [str(UNITS / n) for n in render_units(c)])
         run(['systemctl', 'daemon-reload'])
+        run(['/usr/bin/python3', str(BASE / 'record_http.py'), '--prepare-token'])
+        run(['systemctl', 'enable', 'uav-record-api.service'])
         run(['systemctl', 'enable', BOOT])
         if start:
+            run(['systemctl', 'start', 'uav-record-api.service'])
+            if run(['systemctl', 'is-active', 'uav-record-api.service'], check=False).returncode:
+                raise ValueError('录像控制接口启动失败')
             run(['systemctl', 'start', BOOT], timeout=110)
             time.sleep(2)
             for key in manager.services(c, c['default_mode']):
@@ -353,7 +361,8 @@ def install(c, start=True):
         (BASE / RECEIPT).write_text(json.dumps({'config': c, 'files': files, 'backup': str(backup)}, indent=2))
     except Exception as error:
         failures = []
-        for command in (['systemctl', 'disable', '--now', BOOT],
+        for command in (['systemctl', 'disable', '--now', 'uav-record-api.service'],
+                        ['systemctl', 'disable', '--now', BOOT],
                         ['systemctl', 'stop'] + manager.names(manager.services(c, c['default_mode']))):
             result = run(command, check=False)
             if result.returncode: failures.append(result.stderr)
