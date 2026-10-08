@@ -9,7 +9,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Syntax and unit tests (no installation)
         run: |
-          bash -n install.sh bootstrap.sh algorithm/install.sh
+          bash -n install.sh bootstrap.sh algorithm/install.sh board/uav_record.sh
           python3 -m unittest discover -s tests -v
           python3 -c 'import install; install.verify_manifest()'
           make -C algorithm/mino17-source test

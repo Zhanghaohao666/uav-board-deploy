@@ -4,7 +4,7 @@
 
 **v1.1.0 新增算法板纯视频角色**：运行 `sudo bash algorithm/install.sh`，或 GitHub 入口加 `--role algorithm`。配置算法板静态 IP、两路 CR200 可见光与 Mino17 红外采集、H.264/RTP 推流和独立开机服务，**不部署检测/跟踪算法**。详细安装命令、前提和验收见 [算法板安装说明](algorithm/README.md)。`--role algorithm` 表示程序安装在算法板；主控的 `--mode algorithm` 仍表示主控选择算法板转发方案，两者不同。**不要在 RK3576 云台上运行这些安装器。**
 
-以下章节介绍下视主控角色。推荐使用 v1.1.2，包含缺流转发隔离及算法板前视进程拆分。已有 TTTracker V1.1 算法板使用 [独立采集迁移工具](algorithm/README.md#已有-tttracker-v11-算法板拆分)，不要重复安装新板采集服务。
+以下章节介绍下视主控角色。推荐使用 v1.2.0，包含缺流转发隔离、算法板前视进程拆分及主控按需多路录像。已有 TTTracker V1.1 算法板使用 [独立采集迁移工具](algorithm/README.md#已有-tttracker-v11-算法板拆分)，不要重复安装新板采集服务。
 
 电脑端方案菜单位于 `pc/`：用其中的 `start_full_link.py` 替换 Windows 旧脚本。板端已经开机自启，日常只需地面站拉流，不要再次运行旧 `start_gimbal_master.sh`，以免与新服务争用端口。
 
@@ -36,16 +36,16 @@ sudo bash install.sh --mode dual --payload-iface eth0 --mk22-iface eth1 --extens
 
 ## GitHub 一条命令入口
 
-公开仓库：https://github.com/Zhanghaohao666/uav-board-deploy 。以下命令固定到 `v1.1.2`，避免主分支后续变动影响当前部署。
+公开仓库：https://github.com/Zhanghaohao666/uav-board-deploy 。以下命令固定到 `v1.2.0`，避免主分支后续变动影响当前部署。
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Zhanghaohao666/uav-board-deploy/v1.1.2/bootstrap.sh) --repo Zhanghaohao666/uav-board-deploy --ref v1.1.2
+bash <(curl -fsSL https://raw.githubusercontent.com/Zhanghaohao666/uav-board-deploy/v1.2.0/bootstrap.sh) --repo Zhanghaohao666/uav-board-deploy --ref v1.2.0
 ```
 
 如果板卡访问 `raw.githubusercontent.com` 超时，使用下面的 GitHub API 入口（当前主控已通过此入口下载并完成只读 doctor，未重启服务）：
 
 ```bash
-bash <(curl -fsSL -H 'Accept: application/vnd.github.raw+json' 'https://api.github.com/repos/Zhanghaohao666/uav-board-deploy/contents/bootstrap.sh?ref=v1.1.2') --repo Zhanghaohao666/uav-board-deploy --ref v1.1.2
+bash <(curl -fsSL -H 'Accept: application/vnd.github.raw+json' 'https://api.github.com/repos/Zhanghaohao666/uav-board-deploy/contents/bootstrap.sh?ref=v1.2.0') --repo Zhanghaohao666/uav-board-deploy --ref v1.2.0
 ```
 
 也可在命令后添加上文的 `--mode ... --mk22-iface ... --yes` 参数。入口下载完整仓库、检查路径和 SHA-256 清单，再执行安装程序；保留终端以供选择模式，不使用 `curl | bash`。
@@ -95,6 +95,12 @@ python3 /opt/uav-switch/manager.py verify
 
 主控 TCP 9001 转发至算法板 `192.168.10.2:9000`；9000 转发至云台 `192.168.144.108:9000`。地面站视频方案按钮只改拉流地址，控制目标需按用途单独选择。
 
+## 手动多路录像与雷达数据
+
+主控安装后运行 `uav-record`，选择单路或多路录像，默认保存到 `/data/uav-recordings` 数据盘。各路独立连接、断流重试，直接保存压缩码流；开机默认不录像，退出菜单后已选择的录像继续。已有部署只增加录像工具可运行 `sudo python3 install_recorder.py`，不重启视频服务。使用、目录、容量和 104 六路实测见 [录像说明](docs/recording.md)。
+
+Seyond Robin E1X 通过厂家 T1/RJ45 转换盒接入载荷网络，点云本地保存到主控 SSD，不通过 MK22。接线、默认 IP、厂家 SDK 接收及保存方式见 [E1X 接入说明](docs/seyond-e1x.md)。本主控安装器不会自动安装雷达 SDK 或修改雷达网络。
+
 ## 预检查、重复安装与失败处理
 
 ```bash
@@ -112,9 +118,9 @@ sudo bash install.sh --config board-config.json
 
 ## 验证范围
 
-- 29 项 Python 测试通过，覆盖三模式网络/服务规划、完整安装流程的隔离模拟、失败回退、接口选择、重复安装保护、ffmpeg 版本差异。
+- 57 项 Python 测试及 Mino17 解包测试通过，覆盖三模式网络/服务规划、完整安装流程的隔离模拟、失败回退、重复安装保护、算法板独立采集和录像选路/追加/停止/数据盘保护。
 - 在现有 RK3588 上运行只读 doctor 通过；缺少的 arping 仅解压到临时目录后加入检查 PATH，未安装到当前系统。未覆盖正在使用的部署，未重启现有服务。
-- 没有新板地址，因此完整新板安装及断电自启验收尚待在新板执行。
+- 104 上只增量安装录像工具，六路同时保存和解码、缺席一路隔离、单路停止及保持采集/转发 PID 均通过。没有新板地址，因此 v1.2.0 完整新板安装及断电自启验收尚待在新板执行。
 - 不含 SSH 密码、GitHub token、现场日志或个人密钥。
 
 维护者修改文件后，运行 `python3 make_release.py` 重建 SHA-256 清单及本地压缩包，再提交 GitHub。不要提交自动生成的 `board-config.json`。

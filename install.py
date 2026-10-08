@@ -197,6 +197,7 @@ def validate_config(c):
 
 def render_units(c):
     return {BOOT: (ROOT / 'board' / BOOT).read_text(),
+            'uav-record@.service': (ROOT / 'board/uav-record@.service').read_text(),
             TEMPLATE: (ROOT / 'board' / TEMPLATE).read_text().replace('User=dev\n', 'User=' + c['service_user'] + '\n')}
 
 
@@ -244,7 +245,7 @@ def doctor(c):
 
 
 def assert_fresh():
-    paths = [BASE, STATE, LAUNCHER] + [UNITS / name for name in (BOOT, TEMPLATE)]
+    paths = [BASE, STATE, LAUNCHER, LAUNCHER.with_name('uav-record')] + [UNITS / name for name in (BOOT, TEMPLATE, 'uav-record@.service')]
     for path in paths:
         if path.exists() or path.is_symlink():
             raise ValueError('发现已有部署，保持原状：' + str(path) + '；切换请运行 uav-switch')
@@ -269,7 +270,7 @@ def same_install(c):
         if hashlib.sha256(target.read_bytes()).hexdigest() != digest: return False
     if not receipt.get('files'): return False
     return all((UNITS / name).exists() and (UNITS / name).read_text() == content
-               for name, content in render_units(c).items()) and LAUNCHER.is_file() and LAUNCHER.read_bytes() == (ROOT / 'board/uav_switch.sh').read_bytes()
+               for name, content in render_units(c).items()) and LAUNCHER.is_file() and LAUNCHER.read_bytes() == (ROOT / 'board/uav_switch.sh').read_bytes() and LAUNCHER.with_name('uav-record').is_file() and LAUNCHER.with_name('uav-record').read_bytes() == (ROOT / 'board/uav_record.sh').read_bytes()
 
 
 def check_duplicate_address(c):
@@ -337,6 +338,9 @@ def install(c, start=True):
             path.write_text(content); created.append(path)
         shutil.copy2(BASE / 'uav_switch.sh', LAUNCHER); created.append(LAUNCHER)
         LAUNCHER.chmod(0o755)
+        recorder_launcher = LAUNCHER.with_name('uav-record')
+        shutil.copy2(BASE / 'uav_record.sh', recorder_launcher); created.append(recorder_launcher)
+        recorder_launcher.chmod(0o755)
         run(['systemd-analyze', 'verify'] + [str(UNITS / n) for n in render_units(c)])
         run(['systemctl', 'daemon-reload'])
         run(['systemctl', 'enable', BOOT])

@@ -1,0 +1,18 @@
+[Unit]
+Description=On-demand UAV video recording %i
+After=network.target
+RequiresMountsFor=/data
+ConditionPathIsMountPoint=/data
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/uav-switch/record.py worker %i
+Restart=on-failure
+RestartSec=5
+KillMode=mixed
+TimeoutStopSec=15
+StandardOutput=journal
+StandardError=journal
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=20

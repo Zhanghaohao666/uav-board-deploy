@@ -1,4 +1,4 @@
-# 算法板纯视频一键配置（v1.1.2）
+# 算法板纯视频一键配置（v1.2.0）
 
 适用于与当前算法板相同的 RK3588 ARM64 厂家 BSP：两路 CR200 MIPI 相机已能提供 1920×1080 NV12，系统具备 MPP/RGA 硬件编码库。USB Mino17 红外可选。**本工具只负责网络、采集、推流和开机自启，不安装检测/跟踪算法，不提供 TCP 9000 控制服务。**
 
@@ -7,7 +7,7 @@
 先接好两路可见光相机、板间网线，并让新板能访问 GitHub 下载地址及系统软件源。在新算法板终端运行（普通用户默认 `dev`）：
 
 ```bash
-bash <(curl -fsSL -H 'Accept: application/vnd.github.raw+json' 'https://api.github.com/repos/Zhanghaohao666/uav-board-deploy/contents/bootstrap.sh?ref=v1.1.2') --repo Zhanghaohao666/uav-board-deploy --ref v1.1.2 --role algorithm --user dev
+bash <(curl -fsSL -H 'Accept: application/vnd.github.raw+json' 'https://api.github.com/repos/Zhanghaohao666/uav-board-deploy/contents/bootstrap.sh?ref=v1.2.0') --repo Zhanghaohao666/uav-board-deploy --ref v1.2.0 --role algorithm --user dev
 ```
 
 可离线复制**完整仓库/发布包**到新板，再运行：
@@ -60,7 +60,7 @@ Mino17 在已接入时按本机 `/dev/v4l/by-id/*Mino17*video-index0` 识别；�
 --no-start
 ```
 
-前视允许 0/90/180/270 度，红外允许 0/180 度。90/270 度旋转后画幅变为 1080×1920，不会无损变成另一个横向视野。当前旧板采用前视 1 旋转 90、前视 2 旋转 270；新板默认 0，请按实际安装方向选择。
+前视允许 0/90/180/270 度，红外允许 0/180 度。90/270 度旋转后画幅变为 1080×1920，不会无损变成另一个横向视野。2026-10-08 用户已将现场两台前视相机物理旋转 90 度，两路软件旋转均改为 0，横屏正向出图已验证；新板仍应按实际安装方向选择。旧板此前采用 90/270 度的记录不代表现在配置。
 
 `--no-start` 仅安装并启用下次开机，不立即配置 IP 或启动推流。普通安装需要接通板间网线以检查 IP 冲突；只有工厂 BSP、依赖和当前相机格式预检查通过才继续。相同版本同配置再次运行不重启服务；不同版本、不同配置或安装文件损坏时拒绝覆盖，须先安排维护。本版本不提供自动升级旧算法程序。
 
