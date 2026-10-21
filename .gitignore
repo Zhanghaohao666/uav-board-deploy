@@ -7,3 +7,6 @@ board/config.json
 *.log
 algorithm/mino17-source/test_unpack
 algorithm/mino17-source/*.o
+board/src/rk_streamer
+board/src/rtsp_relay_mino17
+board/src/*.o

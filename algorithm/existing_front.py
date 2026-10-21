@@ -29,6 +29,10 @@ def build(slot, supplied=None):
     if not device.startswith('/dev/') or '..' in Path(device).parts:
         raise ValueError('DEVICE 必须是 /dev 下的相机路径')
     host = env.get('HOST', '192.168.10.1')
+    env.setdefault('UAV_LOW_ENABLE', '1')
+    env.setdefault('UAV_LOW_BIND', '192.168.10.2')
+    env.setdefault('UAV_LOW_PEER', host)
+    env.setdefault('UAV_LOW_CPUS', '0-3')
     # Keep the matching runtime used by the existing, validated application.
     libraries = [tracker / 'libs/opencv-3.4.15/lib', tracker / 'libs/opencv_deps',
                  tracker / 'libs/rknn/aarch64-linux-gnu',

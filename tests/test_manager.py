@@ -9,6 +9,13 @@ def dual():return [iface(C['payload_iface'],'192.168.10.1/24'),iface(C['extensio
 class ManagerTests(unittest.TestCase):
  def test_expected_stream_counts(self):
   self.assertEqual([len(m.endpoint_list(C,x)) for x in m.MODES],[5,4,7])
+ def test_low_sources_are_leased_on_the_correct_wired_hosts(self):
+  cmd=m.services(C,'dual')
+  for mount,host,port in [('board','127.0.0.1',15702),('rgb','127.0.0.1',15703),('algorithm','192.168.10.2',15602),('preview','192.168.10.2',15603),('infrared','192.168.10.2',15604)]:
+   argv=cmd['relay']
+   self.assertIn(['--demand','/'+mount+'_low',host,str(port)],[argv[i:i+4] for i in range(len(argv)-3)])
+  for key,mount,port in [('visible','gimbal',15612),('infrared','gimbal_ir',15610)]:
+   argv=cmd[key+'-relay'];self.assertEqual(argv[-4:],['--demand','/'+mount+'_low','192.168.144.108',str(port)])
  def test_two_control_targets(self):
   cmd=m.services(C,'dual');self.assertEqual(cmd['algo-control'][-1],'TCP:192.168.10.2:9000');self.assertEqual(cmd['gimbal-control'][-1],'TCP:192.168.144.108:9000')
  def test_single_profiles_only_start_selected_payload(self):

@@ -7,21 +7,119 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
-#define MAX_MOUNTS 8
+#define MAX_MOUNTS 16
 
 typedef struct {
     char path[64];
     int  port;
     int  is_h265;
+    int control_port;
+    struct sockaddr_in control_addr;
 } Mount;
+
+typedef struct {
+    gint64 pending[MAX_MOUNTS];
+    gboolean playing[MAX_MOUNTS];
+    gint64 last_request;
+} DemandClient;
+typedef struct {
+    Mount *mounts;
+    int count, fd;
+    GMutex mutex;
+    GHashTable *clients;
+    int counts[MAX_MOUNTS];
+} Demand;
+
+static int mount_index(Demand *d, GstRTSPContext *ctx) {
+    if(!ctx || !ctx->uri || !ctx->uri->abspath)return -1;
+    const char *path=ctx->uri->abspath;
+    for(int i=0;i<d->count;++i) {
+        size_t n=strlen(d->mounts[i].path);
+        if(d->mounts[i].control_port && !strncmp(path,d->mounts[i].path,n) &&
+           (!path[n] || path[n]=='/'))return i;
+    }
+    return -1;
+}
+static void lease_send(Demand *d,int index,gboolean key) {
+    Mount *m=&d->mounts[index];
+    const char *msg=key?"UAV_LOW_KEY_V1":"UAV_LOW_V1";
+    if(d->fd>=0)sendto(d->fd,msg,strlen(msg),MSG_DONTWAIT,
+        (struct sockaddr*)&m->control_addr,sizeof(m->control_addr));
+}
+/* Trigger before DESCRIBE: media preparation needs the first SPS/PPS.
+ * https://gstreamer.freedesktop.org/documentation/gst-rtsp-server/rtsp-client.html */
+static GstRTSPStatusCode demand_prepare(GstRTSPClient *client,GstRTSPContext *ctx,gpointer data) {
+    Demand *d=data;int index=mount_index(d,ctx);
+    if(index<0)return GST_RTSP_STS_OK;
+    g_mutex_lock(&d->mutex);
+    DemandClient *s=g_hash_table_lookup(d->clients,client);
+    if(s) {s->pending[index]=g_get_monotonic_time()+8000000;s->last_request=g_get_monotonic_time();}
+    lease_send(d,index,TRUE);
+    g_mutex_unlock(&d->mutex);
+    return GST_RTSP_STS_OK;
+}
+static void demand_play(GstRTSPClient *client,GstRTSPContext *ctx,gpointer data) {
+    Demand *d=data;int i=mount_index(d,ctx);if(i<0)return;
+    g_mutex_lock(&d->mutex);DemandClient *s=g_hash_table_lookup(d->clients,client);
+    if(s){s->playing[i]=TRUE;s->pending[i]=0;s->last_request=g_get_monotonic_time();}
+    lease_send(d,i,TRUE);g_mutex_unlock(&d->mutex);
+}
+static void demand_stop(GstRTSPClient *client,GstRTSPContext *ctx,gpointer data) {
+    Demand *d=data;int i=mount_index(d,ctx);if(i<0)return;
+    g_mutex_lock(&d->mutex);DemandClient *s=g_hash_table_lookup(d->clients,client);
+    if(s){s->playing[i]=FALSE;s->pending[i]=0;}
+    g_mutex_unlock(&d->mutex);
+}
+static void demand_touch(GstRTSPClient *client,GstRTSPContext *ctx,gpointer data) {
+    (void)ctx;Demand *d=data;g_mutex_lock(&d->mutex);
+    DemandClient *s=g_hash_table_lookup(d->clients,client);
+    if(s)s->last_request=g_get_monotonic_time();
+    g_mutex_unlock(&d->mutex);
+}
+static void demand_closed(GstRTSPClient *client,gpointer data) {
+    Demand *d=data;g_mutex_lock(&d->mutex);
+    g_hash_table_remove(d->clients,client);g_mutex_unlock(&d->mutex);
+}
+static void demand_connected(GstRTSPServer *server,GstRTSPClient *client,gpointer data) {
+    (void)server;Demand *d=data;DemandClient *s=g_new0(DemandClient,1);
+    s->last_request=g_get_monotonic_time();g_mutex_lock(&d->mutex);
+    g_hash_table_insert(d->clients,client,s);g_mutex_unlock(&d->mutex);
+    g_signal_connect(client,"pre-describe-request",G_CALLBACK(demand_prepare),d);
+    g_signal_connect(client,"pre-setup-request",G_CALLBACK(demand_prepare),d);
+    g_signal_connect(client,"play-request",G_CALLBACK(demand_play),d);
+    g_signal_connect(client,"pause-request",G_CALLBACK(demand_stop),d);
+    g_signal_connect(client,"teardown-request",G_CALLBACK(demand_stop),d);
+    g_signal_connect(client,"get-parameter-request",G_CALLBACK(demand_touch),d);
+    g_signal_connect(client,"options-request",G_CALLBACK(demand_touch),d);
+    g_signal_connect(client,"closed",G_CALLBACK(demand_closed),d);
+}
+static gboolean demand_tick(gpointer data) {
+    Demand *d=data;int counts[MAX_MOUNTS]={0};gint64 now=g_get_monotonic_time();
+    g_mutex_lock(&d->mutex);GHashTableIter iter;gpointer value;
+    g_hash_table_iter_init(&iter,d->clients);
+    while(g_hash_table_iter_next(&iter,NULL,&value)) {
+        DemandClient *s=value;
+        for(int i=0;i<d->count;++i)
+            if((s->playing[i] && now-s->last_request<65000000) || s->pending[i]>now)++counts[i];
+    }
+    for(int i=0;i<d->count;++i)if(d->mounts[i].control_port) {
+        if(counts[i])lease_send(d,i,FALSE);
+        if(counts[i]!=d->counts[i])g_print("[demand] %s clients=%d\n",d->mounts[i].path,counts[i]);
+        d->counts[i]=counts[i];
+    }
+    g_mutex_unlock(&d->mutex);return G_SOURCE_CONTINUE;
+}
 
 int main(int argc, char **argv)
 {
     gst_init(&argc, &argv);
 
     int service_port = 8554;
-    Mount mounts[MAX_MOUNTS];
+    Mount mounts[MAX_MOUNTS] = {0};
     int nm = 0;
 
     for (int i = 1; i < argc; i++) {
@@ -34,8 +132,18 @@ int main(int argc, char **argv)
             m->port    = atoi(argv[++i]);
             m->is_h265 = (strcmp(argv[++i], "h265") == 0);
             nm++;
+        } else if (!strcmp(argv[i], "--demand") && i + 3 < argc) {
+            const char *path=argv[++i],*host=argv[++i];int port=atoi(argv[++i]);
+            int found=0;
+            for(int j=0;j<nm;++j)if(!strcmp(path,mounts[j].path)) {
+                Mount *m=&mounts[j];m->control_port=port;
+                m->control_addr.sin_family=AF_INET;m->control_addr.sin_port=htons(port);
+                if(port<1024 || port>65535 || inet_pton(AF_INET,host,&m->control_addr.sin_addr)!=1)return 1;
+                found=1;break;
+            }
+            if(!found){fprintf(stderr,"--demand must follow its --mount\n");return 1;}
         } else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
-            printf("用法: %s [--port 8554] --mount /路径 监听端口 h264|h265 [--mount ...]\n", argv[0]);
+            printf("用法: %s [--port 8554] --mount /路径 RTP端口 h264|h265 [--demand /路径 控制IP 控制UDP端口]\n", argv[0]);
             return 0;
         }
     }
@@ -46,6 +154,11 @@ int main(int argc, char **argv)
 
     GMainLoop *loop = g_main_loop_new(NULL, FALSE);
     GstRTSPServer *server = gst_rtsp_server_new();
+    Demand demand={.mounts=mounts,.count=nm,.fd=socket(AF_INET,SOCK_DGRAM|SOCK_CLOEXEC|SOCK_NONBLOCK,0)};
+    g_mutex_init(&demand.mutex);
+    demand.clients=g_hash_table_new_full(g_direct_hash,g_direct_equal,NULL,g_free);
+    g_signal_connect(server,"client-connected",G_CALLBACK(demand_connected),&demand);
+    g_timeout_add(1000,demand_tick,&demand);
     /* A missing RTP source may block DESCRIBE while media is prepared.
      * Give each client its own request thread so other mounts remain usable. */
     GstRTSPThreadPool *pool = gst_rtsp_server_get_thread_pool(server);

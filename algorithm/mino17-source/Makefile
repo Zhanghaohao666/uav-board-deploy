@@ -1,8 +1,12 @@
 CC ?= gcc
+.DEFAULT_GOAL := all
+COMMON_DIR ?= ../../board/src
 CFLAGS ?= -O2 -Wall -Wextra
-CPPFLAGS += -I/usr/include/rockchip
-LDLIBS += -lrockchip_mpp
-OBJECTS = mino17_streamer.o mino_unpack.o camera.o mpp_encoder.o rtp_sender.o
+CPPFLAGS += -I/usr/include/rockchip -I$(COMMON_DIR)
+LDLIBS += -lrockchip_mpp -lrga -lpthread
+OBJECTS = mino17_streamer.o mino_unpack.o camera.o mpp_encoder.o rtp_sender.o low_stream.o
+low_stream.o: $(COMMON_DIR)/low_stream.c $(COMMON_DIR)/low_stream.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 all: mino17_streamer
 mino17_streamer: $(OBJECTS)

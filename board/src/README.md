@@ -10,7 +10,7 @@ API 依据：https://gstreamer.freedesktop.org/documentation/gst-rtsp-server/rts
 gcc -O2 -Wall -Wextra rtsp_relay_mino17.c -o rtsp_relay_mino17 $(pkg-config --cflags --libs gstreamer-rtsp-server-1.0)
 ```
 
-回归测试在独立 TCP 18554、UDP 15702/15602 端口运行，使用小尺寸合成画面，不占用真实相机。需要 ffmpeg 的 libx264 编码器：
+回归测试在独立 TCP 18554、UDP 25702/25602 端口运行，使用小尺寸合成画面，不占用真实相机。需要 ffmpeg 的 libx264 编码器：
 
 ```sh
 python3 tests/rtsp_missing_source.py --old-bin /path/to/old/rtsp_relay_mino17 --fixed-bin /path/to/fixed/rtsp_relay_mino17

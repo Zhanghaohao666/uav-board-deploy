@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "camera.h"
 #include "mpp_encoder.h"
+#include "low_stream.h"
 #include "rtp_sender.h"
 #include "mino_unpack.h"
 #include <linux/videodev2.h>
@@ -65,6 +66,7 @@ int main(int argc, char **argv) {
         .bitrate_kbps=bitrate, .gop=25};
     MppEncoder *enc = enc_create(&cfg);
     RtpSender *rtp = rtp_open(host, port, 0);
+    LowStream *low = low_stream_create(host, port, 640, 512);
     const size_t size = 640 * 512 * 3 / 2;
     uint8_t *nv12 = malloc(size);
     int failed = !enc || !rtp || !nv12;
@@ -96,6 +98,7 @@ int main(int argc, char **argv) {
         }
         /* Fixed 90 kHz / 25 fps clock excludes USB arrival jitter. */
         rtp_timestamp += 3600;
+        low_stream_offer(low, nv12, 640, 512);
         ++frames;
         uint64_t now = mono_us();
         if (now-report >= 10000000) {
@@ -104,6 +107,7 @@ int main(int argc, char **argv) {
             report=now; frames=0;
         }
     }
+    low_stream_destroy(low);
     free(nv12);
     if (rtp) rtp_close(rtp);
     if (enc) enc_destroy(enc);

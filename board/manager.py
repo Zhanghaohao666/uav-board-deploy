@@ -41,6 +41,24 @@ def services(c,mode):
   for key,path,rtp,rtsp,mount in [('visible',0,5612,8555,'gimbal'),('infrared',1,5610,8556,'gimbal_ir')]:
    cmd[key+'-ingest']=['/usr/bin/ffmpeg','-nostdin','-hide_banner','-loglevel','warning','-rtsp_transport','tcp',c.get('ffmpeg_timeout_option','-stimeout'),'5000000','-i',f'rtsp://192.168.144.108:554/live/{path}','-map','0:v:0','-c:v','copy','-bsf:v','dump_extra','-an','-f','rtp',f'rtp://127.0.0.1:{rtp}']
    cmd[key+'-relay']=[str(b/'rtsp_relay_gimbal'),'--port',str(rtsp),'--mount','/'+mount,str(rtp),'h264']
+ # Low encoder branches share the existing capture and are leased only while
+ # a matching RTSP client is preparing/playing. Tracker TCP ports are unrelated.
+ for key in ('board','d455'):
+  if key in cmd:
+   cmd[key]=['/usr/bin/env','UAV_LOW_ENABLE=1','UAV_LOW_BIND=127.0.0.1',
+             'UAV_LOW_PEER=127.0.0.1','UAV_LOW_CPUS=0-3']+cmd[key]
+ for mount,rtp,peer,control in [('board',6702,'127.0.0.1',15702),('rgb',6703,'127.0.0.1',15703)]:
+  if mount=='rgb' and not c['d455_enabled']:continue
+  cmd['relay']+=['--mount','/'+mount+'_low',str(rtp),'h264',
+                '--demand','/'+mount+'_low',peer,str(control)]
+ if mode in ('algorithm','dual'):
+  for mount,rtp in [('algorithm',6602),('preview',6603),('infrared',6604)]:
+   cmd['relay']+=['--mount','/'+mount+'_low',str(rtp),'h264',
+                 '--demand','/'+mount+'_low','192.168.10.2',str(rtp+9000)]
+ if mode in ('gimbal','dual'):
+  for key,mount,rtp in [('visible','gimbal',6612),('infrared','gimbal_ir',6610)]:
+   cmd[key+'-relay']+=['--mount','/'+mount+'_low',str(rtp),'h264',
+                      '--demand','/'+mount+'_low','192.168.144.108',str(rtp+9000)]
  return cmd
 
 def addrmap(infos):

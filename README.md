@@ -4,7 +4,9 @@
 
 **v1.1.0 新增算法板纯视频角色**：运行 `sudo bash algorithm/install.sh`，或 GitHub 入口加 `--role algorithm`。配置算法板静态 IP、两路 CR200 可见光与 Mino17 红外采集、H.264/RTP 推流和独立开机服务，**不部署检测/跟踪算法**。详细安装命令、前提和验收见 [算法板安装说明](algorithm/README.md)。`--role algorithm` 表示程序安装在算法板；主控的 `--mode algorithm` 仍表示主控选择算法板转发方案，两者不同。**不要在 RK3576 云台上运行这些安装器。**
 
-以下章节介绍下视主控角色。推荐使用 v1.3.0，包含缺流转发隔离、算法板前视进程拆分、按需录像及地面站录像接口。已有 TTTracker V1.1 算法板使用 [独立采集迁移工具](algorithm/README.md#已有-tttracker-v11-算法板拆分)，不要重复安装新板采集服务。
+以下章节介绍下视主控角色。推荐使用 v1.4.0，包含按需低码率预览、缺流转发隔离、算法板前视进程拆分、按需录像及地面站录像接口。已有 TTTracker V1.1 算法板使用 [独立采集迁移工具](algorithm/README.md#已有-tttracker-v11-算法板拆分)，不要重复安装新板采集服务。
+
+**v1.4.0 配套地面站自动采用“单路高清、多路低码率”**，源端根据 RTSP 订阅启停额外硬件编码。高清录像地址保留，现有算法不重复执行。需要主控和载荷端同时支持，当前实板已部署；地址、已有主控增量升级和验证范围见 [按需低清说明](docs/adaptive-streams.md)。
 
 电脑端方案菜单位于 `pc/`：用其中的 `start_full_link.py` 替换 Windows 旧脚本。板端已经开机自启，日常只需地面站拉流，不要再次运行旧 `start_gimbal_master.sh`，以免与新服务争用端口。
 
@@ -36,16 +38,16 @@ sudo bash install.sh --mode dual --payload-iface eth0 --mk22-iface eth1 --extens
 
 ## GitHub 一条命令入口
 
-公开仓库：https://github.com/Zhanghaohao666/uav-board-deploy 。以下命令固定到 `v1.3.0`，避免主分支后续变动影响当前部署。
+公开仓库：https://github.com/Zhanghaohao666/uav-board-deploy 。以下命令固定到 `v1.4.0`，避免主分支后续变动影响当前部署。
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Zhanghaohao666/uav-board-deploy/v1.3.0/bootstrap.sh) --repo Zhanghaohao666/uav-board-deploy --ref v1.3.0
+bash <(curl -fsSL https://raw.githubusercontent.com/Zhanghaohao666/uav-board-deploy/v1.4.0/bootstrap.sh) --repo Zhanghaohao666/uav-board-deploy --ref v1.4.0
 ```
 
 如果板卡访问 `raw.githubusercontent.com` 超时，使用下面的 GitHub API 入口（当前主控已通过此入口下载并完成只读 doctor，未重启服务）：
 
 ```bash
-bash <(curl -fsSL -H 'Accept: application/vnd.github.raw+json' 'https://api.github.com/repos/Zhanghaohao666/uav-board-deploy/contents/bootstrap.sh?ref=v1.3.0') --repo Zhanghaohao666/uav-board-deploy --ref v1.3.0
+bash <(curl -fsSL -H 'Accept: application/vnd.github.raw+json' 'https://api.github.com/repos/Zhanghaohao666/uav-board-deploy/contents/bootstrap.sh?ref=v1.4.0') --repo Zhanghaohao666/uav-board-deploy --ref v1.4.0
 ```
 
 也可在命令后添加上文的 `--mode ... --mk22-iface ... --yes` 参数。入口下载完整仓库、检查路径和 SHA-256 清单，再执行安装程序；保留终端以供选择模式，不使用 `curl | bash`。

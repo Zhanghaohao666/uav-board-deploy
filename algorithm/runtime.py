@@ -211,7 +211,10 @@ def main():
             raise ValueError(detail)
         argv = command(c, a.slot)
         print('启动纯视频：' + ' '.join(argv), flush=True)
-        supervise(['stdbuf', '-oL', '-eL'] + argv, environment())
+        env = environment()
+        env.update(UAV_LOW_ENABLE='1', UAV_LOW_BIND=str(ipaddress.IPv4Interface(c['address']).ip),
+                   UAV_LOW_PEER=c['host'], UAV_LOW_CPUS='0-3')
+        supervise(['stdbuf', '-oL', '-eL'] + argv, env)
     else:
         print(json.dumps(c, ensure_ascii=False, indent=2))
         for slot in ('network',) + SLOTS:
