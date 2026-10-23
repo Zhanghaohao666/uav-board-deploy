@@ -5,6 +5,8 @@ board/config.json
 *.tar.gz
 *.zip
 *.log
+/runtime/
+*.part
 algorithm/mino17-source/test_unpack
 algorithm/mino17-source/*.o
 board/src/rk_streamer

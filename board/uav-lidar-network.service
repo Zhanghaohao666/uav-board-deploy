@@ -1,0 +1,11 @@
+[Unit]
+Description=Prepare dedicated E1X network (no acquisition)
+After=network.target NetworkManager.service systemd-networkd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/uav-switch/lidar_network.py
+TimeoutStartSec=20
+
+[Install]
+WantedBy=multi-user.target

@@ -4,7 +4,7 @@
 set -euo pipefail
 repo=""
 ref="main"
-role="main"
+role=""
 while (($#)); do
     case "$1" in
         --repo) repo="${2:?--repo needs OWNER/REPOSITORY}"; shift 2 ;;
@@ -14,9 +14,8 @@ while (($#)); do
     esac
 done
 case "$role" in
-    main) installer=install.sh ;;
-    algorithm) installer=algorithm/install.sh ;;
-    *) echo '角色必须为 main 或 algorithm' >&2; exit 2 ;;
+    ''|main|algorithm|algorithm-video) installer=deploy.sh ;;
+    *) echo '角色必须为 main、algorithm 或 algorithm-video' >&2; exit 2 ;;
 esac
 if [[ ! "$repo" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || [[ ! "$ref" =~ ^[A-Za-z0-9_.-]+$ ]]; then
     echo '用法：bootstrap.sh --repo OWNER/REPOSITORY [--ref COMMIT_OR_TAG] [安装参数]' >&2
@@ -45,4 +44,8 @@ if len(roots)!=1 or not (roots[0]/'install.sh').is_file():raise SystemExit('安�
 PY
 bundle_path="$(cat "$bundle_tmp/bundle-path")"
 # Preserve the terminal for mode/interface selection. Do not pipe this script to bash.
-bash "$bundle_path/$installer" "$@"
+if [[ -n "$role" ]]; then
+    bash "$bundle_path/$installer" --role "$role" "$@"
+else
+    bash "$bundle_path/$installer" "$@"
+fi

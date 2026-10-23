@@ -65,4 +65,17 @@ class ManagerTests(unittest.TestCase):
    # Neither shared camera was stopped during a failed payload switch.
    for cmd in calls:
     if cmd[:2]==['systemctl','stop']:self.assertNotIn('uav-switch@board.service',cmd);self.assertNotIn('uav-switch@d455.service',cmd)
+class AutoRgbTests(unittest.TestCase):
+ def test_explicit_device_never_probed(self):
+  with patch.object(m,'run') as probe:
+   self.assertEqual(m.resolve_auto_rgb(['capture','/dev/video9']),['capture','/dev/video9']);probe.assert_not_called()
+ def test_missing_or_ambiguous_device_waits(self):
+  from types import SimpleNamespace
+  for candidates in ([],[Path('/dev/video101'),Path('/dev/video102')]):
+   with patch.object(m.Path,'glob',return_value=candidates),patch.object(m,'run',return_value=SimpleNamespace(stdout="RealSense 'YUYV' 640x480")):
+    with self.assertRaises(ValueError):m.resolve_auto_rgb(['capture','/dev/uav-d455-rgb-auto'])
+ def test_duplicate_aliases_select_one_camera(self):
+  from types import SimpleNamespace
+  with patch.object(m.Path,'glob',return_value=[Path('/dev/video101')]),patch.object(m,'run',return_value=SimpleNamespace(stdout="RealSense 'YUYV' 640x480")):
+   self.assertEqual(m.resolve_auto_rgb(['capture','/dev/uav-d455-rgb-auto']),['capture','/dev/video101'])
 if __name__=='__main__':unittest.main(verbosity=2)

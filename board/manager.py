@@ -159,11 +159,26 @@ def verify(c):
  with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:results=list(pool.map(one,endpoint_list(c,current(c))))
  return {'all_decoded':all(r['decoded'] for r in results),'streams':results}
 
+def resolve_auto_rgb(cmd):
+ sentinel='/dev/uav-d455-rgb-auto'
+ if sentinel not in cmd:return cmd
+ found={}
+ for path in sorted(list(Path('/dev/v4l/by-id').glob('*RealSense*'))+list(Path('/dev/v4l/by-path').glob('*usb*-video-index*'))):
+  real=str(path.resolve())
+  if real in found:continue
+  detail=run(['v4l2-ctl','-d',str(path),'--all'],check=False).stdout
+  if 'RealSense' not in detail and 'RealSense' not in path.name:continue
+  formats=run(['v4l2-ctl','-d',str(path),'--list-formats-ext'],check=False).stdout
+  if "'YUYV'" in formats and '640x480' in formats:found[real]=str(path)
+ if len(found)!=1:raise ValueError('D455彩色设备未就绪或有多个候选；仅本路等待，请检查连接或在config.json明确d455_rgb')
+ return [next(iter(found.values())) if arg==sentinel else arg for arg in cmd]
+
 def main():
  p=argparse.ArgumentParser();p.add_argument('action',choices=['switch','boot','status','verify','save-default','worker']);p.add_argument('value',nargs='?');p.add_argument('--save-default',action='store_true');a=p.parse_args();c=config()
  if a.action=='worker':
   cmd=services(c,current(c)).get(a.value)
   if not cmd:raise ValueError('当前模式不包含此服务')
+  cmd=resolve_auto_rgb(cmd)
   os.execv(cmd[0],cmd)
  if a.action in ('switch','boot','save-default'):
   if os.geteuid()!=0:raise ValueError('需要管理员权限')

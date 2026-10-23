@@ -50,6 +50,12 @@ def verify_manifest():
     required = {'install.py', 'install.sh', 'board/manager.py', 'board/board_menu.py',
                 'board/uav_switch.sh', 'board/' + BOOT, 'board/' + TEMPLATE}
     required.update(str(p.relative_to(ROOT)) for p in (ROOT / 'board').rglob('*') if p.is_file() and '__pycache__' not in p.parts)
+    for folder in ('algorithm','common','tools'):
+        required.update(str(p.relative_to(ROOT)) for p in (ROOT / folder).rglob('*')
+                        if p.is_file() and '__pycache__' not in p.parts
+                        and p.suffix in ('.py','.sh','.json'))
+    for name in ('deploy.py','deploy.sh','bootstrap.sh'):
+        if (ROOT/name).exists():required.add(name)
     if not required.issubset(manifest):
         raise ValueError('校验清单缺少程序文件')
 
@@ -131,7 +137,7 @@ def make_config(args):
     interactive = not args.yes and sys.stdin.isatty()
     mode = choose('部署方案', list(manager.MODES), args.mode, 'algorithm', interactive)
     infos = interfaces()
-    nets = ethernet_names(infos)
+    nets = [n for n in ethernet_names(infos) if n not in getattr(args, 'reserved_ifaces', ())]
     for info in infos:
         if info['ifname'] in nets:
             print('网卡 {}  MAC {}  IPv4 {}'.format(info['ifname'], info.get('address', ''),
@@ -160,12 +166,18 @@ def make_config(args):
     d455 = not args.without_d455
     rgb = ''
     if d455:
-        rgb = args.d455_rgb or choose('D455 彩色设备', discover_rgb(), interactive=interactive)
+        choices = discover_rgb() if not args.d455_rgb else []
+        if not args.d455_rgb and not choices and getattr(args, 'allow_missing_cameras', False):
+            rgb = '/dev/uav-d455-rgb-auto'
+            print('D455尚未接入：已配置按本板实际设备动态发现，接入后仅此路恢复。')
+        else:
+            rgb = args.d455_rgb or choose('D455 彩色设备', choices, interactive=interactive)
     result = run(['/usr/bin/ffmpeg', '-hide_banner', '-h', 'demuxer=rtsp'])
     return validate_config(dict(default_mode=mode, payload_iface=payload, extension_iface=extension,
         mk22_iface=mk, mk22_address=address, service_user=user, board_camera=board_camera,
         d455_enabled=d455, d455_depth_enabled=False, d455_rgb=rgb, d455_depth='',
-        ffmpeg_timeout_option=timeout_option(result.stdout + result.stderr)))
+        ffmpeg_timeout_option=timeout_option(result.stdout + result.stderr),
+        allow_missing_cameras=getattr(args, 'allow_missing_cameras', False)))
 
 
 def validate_config(c):
@@ -217,7 +229,10 @@ def doctor(c):
     except KeyError: errors.append('用户不存在：' + c['service_user'])
     for name in ('ffmpeg', 'socat', 'fuser', 'v4l2-ctl', 'gst-inspect-1.0', 'arping'):
         if not shutil.which(name): errors.append('缺少命令：' + name)
-    for dev in ['/dev/mpp_service', '/dev/rga', c['board_camera']] + ([c['d455_rgb']] if c['d455_enabled'] else []):
+    devices = ['/dev/mpp_service', '/dev/rga']
+    if not c.get('allow_missing_cameras'):
+        devices += [c['board_camera']] + ([c['d455_rgb']] if c['d455_enabled'] else [])
+    for dev in devices:
         if not Path(dev).exists(): errors.append('设备不存在：' + dev)
     env = dict(os.environ, LD_LIBRARY_PATH=str(ROOT / 'board/lib'))
     for path in (ROOT / 'board/bin').iterdir():
@@ -280,6 +295,9 @@ def check_duplicate_address(c):
     if c['mk22_address'] in existing: return
     # ARP DAD temporarily brings up an unconfigured link, then restores its state.
     info = next(i for i in interfaces() if i['ifname'] == c['mk22_iface'])
+    if c.get('allow_missing_cameras') and info.get('operstate') in ('DOWN', 'LOWERLAYERDOWN'):
+        print('MK22尚未建立物理链路；安装保留地址，接线后请验证同网段无重复IP。')
+        return
     was_down = 'UP' not in info.get('flags', [])
     if was_down: run(['ip', 'link', 'set', 'dev', c['mk22_iface'], 'up'])
     try:
@@ -390,7 +408,7 @@ def install(c, start=True):
         print('尚未启动服务；下次开机生效，也可 sudo systemctl start ' + BOOT)
 
 
-def arguments():
+def arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', nargs='?', choices=['install', 'doctor', 'configure'], default='install')
     parser.add_argument('--mode', choices=manager.MODES)
@@ -406,7 +424,7 @@ def arguments():
     parser.add_argument('--output', default='board-config.json')
     parser.add_argument('--yes', action='store_true', help='无交互；不明确的硬件选择仍会报错')
     parser.add_argument('--no-start', action='store_true', help='安装并启用下次开机，不立即启动')
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def main():

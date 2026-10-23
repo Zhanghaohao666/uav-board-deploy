@@ -1,132 +1,68 @@
-# RK3588 主控板与算法板一键部署
+# RK3588 主控与算法板完整一键部署
 
-用于当前同型号 RK3588 ARM64 BSP（现场参考 Ubuntu 22.04）。默认安装角色为**下视主控板**：MIPI/D455 彩色采集、RTSP 转发、控制 TCP 转发、三模式切换菜单和开机自启。
+v1.6.0 用于**已经刷好同型号厂家完整 RK3588 ARM64 BSP 的新板**。不替代烧录镜像，不替换内核或相机驱动，也不用于 RK3576 云台。
 
-**v1.1.0 新增算法板纯视频角色**：运行 `sudo bash algorithm/install.sh`，或 GitHub 入口加 `--role algorithm`。配置算法板静态 IP、两路 CR200 可见光与 Mino17 红外采集、H.264/RTP 推流和独立开机服务，**不部署检测/跟踪算法**。详细安装命令、前提和验收见 [算法板安装说明](algorithm/README.md)。`--role algorithm` 表示程序安装在算法板；主控的 `--mode algorithm` 仍表示主控选择算法板转发方案，两者不同。**不要在 RK3576 云台上运行这些安装器。**
+## 在线安装
 
-以下章节介绍下视主控角色。推荐使用 v1.5.0，包含 E1X 按需原始点云录制、按需低码率预览、缺流转发隔离、算法板前视进程拆分、按需录像及地面站录像接口。已有 TTTracker V1.1 算法板使用 [独立采集迁移工具](algorithm/README.md#已有-tttracker-v11-算法板拆分)，不要重复安装新板采集服务。
-
-**v1.4.0 配套地面站自动采用“单路高清、多路低码率”**，源端根据 RTSP 订阅启停额外硬件编码。高清录像地址保留，现有算法不重复执行。需要主控和载荷端同时支持，当前实板已部署；地址、已有主控增量升级和验证范围见 [按需低清说明](docs/adaptive-streams.md)。
-
-电脑端方案菜单位于 `pc/`：用其中的 `start_full_link.py` 替换 Windows 旧脚本。板端已经开机自启，日常只需地面站拉流，不要再次运行旧 `start_gimbal_master.sh`，以免与新服务争用端口。
-
-地面站源码和历史版本：[uav-ground-station](https://github.com/Zhanghaohao666/uav-ground-station)。
-
-**v1.5.0 新增 E1X 雷达数据录制**：配套地面站“数据录制”窗口单独开始/停止点云，本地保存 `/data/uav-lidar`。已有主控使用 `sudo python3 install_lidar_recorder.py --upgrade`；新板完整安装包含控制后端，但仍需兼容的厂家 SDK 和实际雷达网络配置。不开机自动采集。[使用与升级说明](docs/lidar-recording.md)。
-
-## 本地一条命令安装
-
-将本目录完整复制到新板，进入目录执行：
+在新板终端执行（保留终端供交互选择）：
 
 ```bash
-sudo bash install.sh
+curl -fL https://raw.githubusercontent.com/Zhanghaohao666/uav-board-deploy/v1.6.0/bootstrap.sh -o /tmp/uav-bootstrap.sh && bash /tmp/uav-bootstrap.sh --repo Zhanghaohao666/uav-board-deploy --ref v1.6.0
 ```
 
-依次选择：算法板单网口 / 云台单网口 / 双网口并行、板间网口、MK22 网口（双网口模式另选云台扩展口）、本板 MK22 地址。D455 彩色设备按本机设备和格式识别，有多个候选时要求选择；不会使用旧板序列号。默认 MIPI 接口适用于当前同型号 BSP；其他相机接口请用 `--board-camera` 明确指定。
+选择“主控板”或“完整算法板”，再按提示选择网口与部署方案。也可在命令末尾添加 `--role main` 或 `--role algorithm`。
 
-安装程序检查 RK3588、硬件编码驱动、动态库、GStreamer 插件、相机格式、网络冲突及相机/端口占用；然后复制文件、启用开机服务、立即启动并验证画面。依赖只安装缺少的用户态软件包，不运行系统整体升级、不安装/替换内核或 BSP。
+| 安装角色 | 安装内容 |
+| --- | --- |
+| 主控板 | 下视 MIPI、D455i 彩色视频、载荷视频转发、控制转发、单路/多路预览支持、视频和雷达按需录像接口、方案切换及开机自启 |
+| 完整算法板 | 已验证的检测跟踪程序、所需模型与动态库、两路前视及 Mino17 红外独立推流、低码率预览分支、固定板间 IP 与独立自启服务 |
 
-**同一 MK22/以太网网络上同时使用多块主控，必须分配不同 IP。** 例如第一块 `.36`，第二块 `.37`；地面站的视频方案按钮预设是 `.36`。`.37` 的板需在地面站各窗口改对应主机地址。两套完全隔离的网络可以各用 `.36`。
+算法运行包由安装器下载并校验 SHA256；不需要手动复制静态库或重新编译算法。运行程序已经链接算法库，安装器不修改算法逻辑。仅需原始视频的特殊场景仍可使用 `--role algorithm-video`，它不包含检测跟踪。
 
-明确参数、无需逐项选择的例子（网卡名仅是例子，先用 `ip -br addr` 查看本板）：
+## 网口与存储
+
+- 主控支持算法板单网口、云台单网口、双网口并行测试；根据实际接线选择，不能照抄其他板子的 USB 网卡名。
+- 主控 MK22 默认地址 `192.168.2.36/24`；算法板板间地址默认 `192.168.10.2/24`，主控对应 `192.168.10.1/24`。同一网络多块主控必须使用不同地址。
+- 雷达默认使用专用 J16/`eth1`，主机地址 `172.168.1.100/24`、雷达 `172.168.1.10`。安装器保留该接口，禁止与 MK22/载荷网口重复分配。型号映射不同可指定 `--lidar-iface`；不用雷达可加 `--without-lidar`。
+- 雷达采集工具随包提供，**不需要用户另装厂家 SDK**。开机只配置网络，不自动采集；插好、供电后由地面站按需开始/停止录制。
+- 优先复用独立数据盘。尚未挂载时可明确选择已有 ext4 分区 UUID；不格式化，不把系统盘目录冒充数据盘。主控录像默认 `/data/uav-recordings`，雷达默认 `/data/uav-lidar`。
+- 日志迁到数据盘，设置容量限制与每 10 分钟轮转。保留原日志；发现仍被旧进程持有的日志会单独处理或报告。
+
+## 本地及离线安装
+
+从 [v1.6.0 发布页](https://github.com/Zhanghaohao666/uav-board-deploy/releases/tag/v1.6.0) 下载 `uav-board-deploy-offline-v1.6.0.tar.gz`，其中包含脚本、雷达工具和算法运行包：
 
 ```bash
-sudo bash install.sh --mode algorithm --payload-iface eth0 --mk22-iface eth1 --mk22-address 192.168.2.36/24 --user dev --yes
-sudo bash install.sh --mode gimbal --payload-iface eth0 --mk22-iface eth1 --mk22-address 192.168.2.37/24 --user dev --yes
-sudo bash install.sh --mode dual --payload-iface eth0 --mk22-iface eth1 --extension-iface eth2 --mk22-address 192.168.2.36/24 --user dev --yes
+tar -xzf uav-board-deploy-offline-v1.6.0.tar.gz
+cd uav-board-deploy
+sudo bash deploy.sh --offline
 ```
 
-未接 D455 时加 `--without-d455`；要安装但下次开机再启动，加 `--no-start`。没有相机驱动/MPP/RGA 的通用系统镜像无法靠此脚本补齐，须先刷同型号厂家 BSP、接好相机。
+离线模式不访问软件源；若厂家镜像缺少必要系统软件包，会列出缺项并停止，需要提前联网补齐。离线包并不是完整操作系统镜像。
 
-## GitHub 一条命令入口
+普通源码包 `uav-board-deploy.tar.gz` 不包含算法运行归档；可联网使用 `sudo bash deploy.sh`，或另下载同一版本的 `uav-algorithm-runtime-v1.6.0.tar.gz` 放进 `runtime/`。不用直接运行旧 `install.sh` 代替完整部署入口。
 
-公开仓库：https://github.com/Zhanghaohao666/uav-board-deploy 。以下命令固定到 `v1.4.0`，避免主分支后续变动影响当前部署。
+## 检查与日常维护
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Zhanghaohao666/uav-board-deploy/v1.4.0/bootstrap.sh) --repo Zhanghaohao666/uav-board-deploy --ref v1.4.0
+sudo bash deploy.sh --role main --doctor
+sudo bash deploy.sh --role algorithm --doctor
+sudo uav-switch
+sudo uav-algorithm status
 ```
 
-如果板卡访问 `raw.githubusercontent.com` 超时，使用下面的 GitHub API 入口（当前主控已通过此入口下载并完成只读 doctor，未重启服务）：
+前两项为预检查；后两项分别在安装完成的主控、算法板运行。主控方案菜单可查看状态、视频地址及重启服务；算法板可用 `sudo uav-algorithm restart algorithm` 重启检测跟踪。
 
-```bash
-bash <(curl -fsSL -H 'Accept: application/vnd.github.raw+json' 'https://api.github.com/repos/Zhanghaohao666/uav-board-deploy/contents/bootstrap.sh?ref=v1.4.0') --repo Zhanghaohao666/uav-board-deploy --ref v1.4.0
-```
+`--no-start` 保存应用自启配置但本次不启动应用；存储和日志准备立即生效。相机缺席时对应服务等待，不连带停止其他路。已有部署会检查安装记录和配置；不兼容的旧部署拒绝覆盖，避免抢相机和端口。
 
-也可在命令后添加上文的 `--mode ... --mk22-iface ... --yes` 参数。入口下载完整仓库、检查路径和 SHA-256 清单，再执行安装程序；保留终端以供选择模式，不使用 `curl | bash`。
+## 验证范围与详细文档
 
-私有仓库请使用自己的 GitHub SSH/凭据下载，不将 token 写进命令或本仓库：
+已做安装逻辑、冲突保护、回滚及独立服务自动化测试，并在现有 ARM64 板只读核对算法运行包依赖和雷达工具。没有对现用板执行完整重装；新镜像首次安装后，仍应逐路出图并重启验收。风扇和传感器驱动属于厂家镜像，不能凭安装成功断言硬件全部正常。
 
-```bash
-git clone git@github.com:Zhanghaohao666/uav-board-deploy.git uav-board-deploy && cd uav-board-deploy && sudo bash install.sh
-```
-
-## 安装后切换与开机自启
-
-```bash
-uav-switch
-systemctl status uav-switch-boot.service
-python3 /opt/uav-switch/manager.py status
-python3 /opt/uav-switch/manager.py verify
-```
-
-菜单 1 算法板、2 云台、3 双网口并行、4 状态和流地址、5 验证出图、6 保存当前模式为开机默认、0 退出。1～3 临时切换；选择 6 后下次开机使用当前模式。单网口部署未登记云台扩展口时，不支持直接切到双网口；须为 `/opt/uav-switch/config.json` 的 `extension_iface` 配置实际扩展网口后再切换。
-
-`uav-switch-boot.service` 在 network-online 后加载 `/opt/uav-switch/config.json` 的 default_mode，设置本机地址并启动 `uav-switch@*.service`。工作进程异常退出由 systemd 重启。网络或硬件稍晚上线时会重试。当前模式在 `/var/lib/uav-switch/active.json`，重启按保存的默认模式重新应用。
-
-| 模式 | 板间接线 | 视频数（含 D455 彩色） |
-|---|---|---|
-| algorithm | 算法板接 eth0 | 5 |
-| gimbal | 云台接 eth0 | 4 |
-| dual | 算法板接 eth0，云台接登记的扩展口 | 7 |
-
-单网口方案的 eth0 同时配 `192.168.10.1/24`、`192.168.144.1/24`，只启动选中载荷的主控侧转发；双网口分别配置这两个地址。MK22 使用配置指定的独立接口。工具不改 Wi-Fi、不清空路由、不更改默认网关。BSP 自带网络配置不得在这些接口上配置冲突网段。
-
-## 视频与载荷前提
-
-以下以 MK22 地址 `.36` 为例，其他板更换主机地址即可：
-
-| 视频 | 地址 |
-|---|---|
-| 下视 MIPI | `rtsp://192.168.2.36:8554/board` |
-| D455i 彩色 | `rtsp://192.168.2.36:8554/rgb` |
-| 前视算法 | `rtsp://192.168.2.36:8554/algorithm` |
-| 前视原始预览 | `rtsp://192.168.2.36:8554/preview` |
-| 算法板红外 | `rtsp://192.168.2.36:8554/infrared` |
-| 云台可见光 | `rtsp://192.168.2.36:8555/gimbal` |
-| 云台红外 | `rtsp://192.168.2.36:8556/gimbal_ir` |
-
-算法板 `192.168.10.2` 需向主控 `192.168.10.1` 的 UDP 5602/5603/5604 推送 H.264 RTP；可保持原算法程序，或在新算法板上单独安装本包的纯视频角色。云台 `192.168.144.108` 需提供 `rtsp://192.168.144.108:554/live/0` 和 `/live/1`。本节命令只安装主控；本包的任何角色均不会自动部署检测/跟踪算法程序。
-
-主控 TCP 9001 转发至算法板 `192.168.10.2:9000`；9000 转发至云台 `192.168.144.108:9000`。地面站视频方案按钮只改拉流地址，控制目标需按用途单独选择。
-
-## 手动多路录像与雷达数据
-
-v1.3.0 配套地面站源码 `v1.01.09-board-recording` 可点击选择录像并保存到主控。新板包含 9072 控制服务；已有主控运行 `sudo python3 install_record_api.py` 增量添加。控制服务开机启动，录像仍手动开始。每板独立连接码：`sudo cat /etc/uav-record-api/token`，首次在地面站输入。104 已安装并完成生产 Qt 控制器实板联调。
-
-主控安装后运行 `uav-record`，选择单路或多路录像，默认保存到 `/data/uav-recordings` 数据盘。各路独立连接、断流重试，直接保存压缩码流；开机默认不录像，退出菜单后已选择的录像继续。已有部署只增加录像工具可运行 `sudo python3 install_recorder.py`，不重启视频服务。使用、目录、容量和 104 六路实测见 [录像说明](docs/recording.md)。
-
-Seyond Robin E1X 通过厂家 T1/RJ45 转换盒接入载荷网络，点云本地保存到主控 SSD，不通过 MK22。接线、默认 IP、厂家 SDK 接收及保存方式见 [E1X 接入说明](docs/seyond-e1x.md)。本主控安装器不会自动安装雷达 SDK 或修改雷达网络。
-
-## 预检查、重复安装与失败处理
-
-```bash
-# 有依赖的板子上生成配置，随后只读检查：
-python3 install.py configure --mode algorithm --payload-iface eth0 --mk22-iface eth1 --mk22-address 192.168.2.36/24 --user dev --output board-config.json --yes
-python3 install.py doctor --config board-config.json
-sudo bash install.sh --config board-config.json
-```
-
-`doctor` 不安装依赖，不修改网络或服务。相同安装包、相同配置的再次安装会跳过，不重启服务。已有旧版本、旧开机服务或未知占用会拒绝安装，并保留原状；本包面向新板，升级现有板需要另行迁移，不能强行覆盖。
-
-安装前状态保存在 `/var/backups/uav-switch/时间/`。安装命令失败会尝试停止本次服务、删除本次文件、恢复本次修改的受管 IP。已安装的 apt 依赖保留。设备未出图会明确报告，但不撤销已经完成的服务安装；服务 active 不代表视频验证通过。
-
-自动配置不能代替物理接线、配置载荷板、刷 BSP、设置 MK22 或解决重复地址。网络断开时 ARP 查重不能判断断开的另一台主控，所以仍需规划唯一地址。
-
-## 验证范围
-
-- 63 项 Python 测试及 Mino17 解包测试通过，覆盖三模式网络/服务规划、完整安装流程的隔离模拟、失败回退、重复安装保护、算法板独立采集和录像选路/追加/停止/数据盘保护。
-- 在现有 RK3588 上运行只读 doctor 通过；缺少的 arping 仅解压到临时目录后加入检查 PATH，未安装到当前系统。未覆盖正在使用的部署，未重启现有服务。
-- 104 上只增量安装录像工具，六路同时保存和解码、缺席一路隔离、单路停止及保持采集/转发 PID 均通过。没有新板地址，因此 v1.2.0 完整新板安装及断电自启验收尚待在新板执行。
-- 不含 SSH 密码、GitHub token、现场日志或个人密钥。
-
-维护者修改文件后，运行 `python3 make_release.py` 重建 SHA-256 清单及本地压缩包，再提交 GitHub。不要提交自动生成的 `board-config.json`。
+- [完整算法安装细节](algorithm/FULL_DEPLOYMENT.md)
+- [算法视频与兼容工具](algorithm/README.md)
+- [视频低码率预览](docs/adaptive-streams.md)
+- [雷达按需录制](docs/lidar-recording.md)
+- [历史主控底层安装入口](docs/legacy-main-install.md)（保留参考，新板优先使用本页 `deploy.sh`）
+- [版本变更](CHANGELOG.md)
+- [配套地面站](https://github.com/Zhanghaohao666/uav-ground-station)

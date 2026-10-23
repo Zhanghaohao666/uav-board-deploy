@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "file": "get_pcd_record",
+  "arch": "aarch64",
+  "sha256": "0e9531de5c2cafc6d57191dbd1db9a4d8580edc294fc54d68ca11ab649fce471",
+  "sdk_version": "3.103.13",
+  "sdk_commit": "73a24e98c283391b890cfd106e5cc13e9c9d7f5b",
+  "tcp_initialization_fix": true,
+  "graceful_stop": true
+}
