@@ -1,5 +1,8 @@
 # Seyond Robin E1X 接入 104 和保存点云
 
+> 当前地面站一键录制见 [雷达录制说明](lidar-recording.md)。104 已验证过 J16 直连采集及离线回放；以下 SDK 准备段落保留早期接入步骤，不能将其“尚未验收”文字当作当前在线状态。地面站版默认在主控 J16/eth1 录制，不自动更改网口。
+
+
 依据用户提供的《Seyond Robin E1X 激光雷达用户手册》CN V1.4.0（2025-05-08），以及 [厂家 SDK](https://github.com/Seyond-Inc/inno-lidar-sdk) 和 [get_pcd 文档](https://github.com/Seyond-Inc/inno-lidar-sdk/blob/main/docs/get_pcd.md)。雷达点云不是 RTSP 视频，不能直接填入地面站视频地址。
 
 ## 接线和网络

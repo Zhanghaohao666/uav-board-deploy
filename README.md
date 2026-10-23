@@ -4,13 +4,15 @@
 
 **v1.1.0 新增算法板纯视频角色**：运行 `sudo bash algorithm/install.sh`，或 GitHub 入口加 `--role algorithm`。配置算法板静态 IP、两路 CR200 可见光与 Mino17 红外采集、H.264/RTP 推流和独立开机服务，**不部署检测/跟踪算法**。详细安装命令、前提和验收见 [算法板安装说明](algorithm/README.md)。`--role algorithm` 表示程序安装在算法板；主控的 `--mode algorithm` 仍表示主控选择算法板转发方案，两者不同。**不要在 RK3576 云台上运行这些安装器。**
 
-以下章节介绍下视主控角色。推荐使用 v1.4.0，包含按需低码率预览、缺流转发隔离、算法板前视进程拆分、按需录像及地面站录像接口。已有 TTTracker V1.1 算法板使用 [独立采集迁移工具](algorithm/README.md#已有-tttracker-v11-算法板拆分)，不要重复安装新板采集服务。
+以下章节介绍下视主控角色。推荐使用 v1.5.0，包含 E1X 按需原始点云录制、按需低码率预览、缺流转发隔离、算法板前视进程拆分、按需录像及地面站录像接口。已有 TTTracker V1.1 算法板使用 [独立采集迁移工具](algorithm/README.md#已有-tttracker-v11-算法板拆分)，不要重复安装新板采集服务。
 
 **v1.4.0 配套地面站自动采用“单路高清、多路低码率”**，源端根据 RTSP 订阅启停额外硬件编码。高清录像地址保留，现有算法不重复执行。需要主控和载荷端同时支持，当前实板已部署；地址、已有主控增量升级和验证范围见 [按需低清说明](docs/adaptive-streams.md)。
 
 电脑端方案菜单位于 `pc/`：用其中的 `start_full_link.py` 替换 Windows 旧脚本。板端已经开机自启，日常只需地面站拉流，不要再次运行旧 `start_gimbal_master.sh`，以免与新服务争用端口。
 
 地面站源码和历史版本：[uav-ground-station](https://github.com/Zhanghaohao666/uav-ground-station)。
+
+**v1.5.0 新增 E1X 雷达数据录制**：配套地面站“数据录制”窗口单独开始/停止点云，本地保存 `/data/uav-lidar`。已有主控使用 `sudo python3 install_lidar_recorder.py --upgrade`；新板完整安装包含控制后端，但仍需兼容的厂家 SDK 和实际雷达网络配置。不开机自动采集。[使用与升级说明](docs/lidar-recording.md)。
 
 ## 本地一条命令安装
 

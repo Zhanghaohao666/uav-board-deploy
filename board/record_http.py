@@ -13,6 +13,7 @@ import subprocess
 import threading
 
 import record
+import lidar_record
 
 TOKEN = Path('/etc/uav-record-api/token')
 PORT = 9072
@@ -79,6 +80,7 @@ def snapshot():
                     pass
             streams.append(item)
         return {'api_version': 1, 'storage': storage, 'streams': streams,
+                'lidar': lidar_record.snapshot(),
                 'session': {'id': value['session'], 'path': value['path'],
                             'started_at': value['started_at'], 'segment_seconds': value['segment_seconds']}
                            if value else None}
@@ -150,7 +152,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.authorized():
             return
-        action = {'/v1/start': 'start', '/v1/stop': 'stop'}.get(self.path)
+        action = {'/v1/start': 'start', '/v1/stop': 'stop',
+                  '/v1/lidar/start': 'lidar_start', '/v1/lidar/stop': 'lidar_stop'}.get(self.path)
         if not action:
             self.respond(404, {'ok': False, 'error': '接口不存在'})
             return
@@ -161,11 +164,19 @@ class Handler(BaseHTTPRequestHandler):
             if not 0 < length <= 4096:
                 raise ValueError('请求长度不正确')
             body = json.loads(self.rfile.read(length))
-            keys = selection(body, action)
+            if action.startswith('lidar_'):
+                if not isinstance(body, dict) or body:
+                    raise ValueError('雷达请求必须为空对象 {}；地址和目录由板端配置')
+            else:
+                keys = selection(body, action)
         except (ValueError, OSError, TypeError) as error:
             self.respond(400, {'ok': False, 'error': str(error)})
             return
-        if action == 'start':
+        if action == 'lidar_start':
+            operation = lidar_record.start
+        elif action == 'lidar_stop':
+            operation = lidar_record.stop
+        elif action == 'start':
             def operation():
                 previous = record.current()
                 record.start(keys, previous['segment_seconds'] if previous else 300)

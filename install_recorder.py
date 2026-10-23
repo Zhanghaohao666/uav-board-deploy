@@ -18,6 +18,10 @@ def install():
     destinations = [(ROOT / 'board/record.py', Path('/opt/uav-switch/record.py')),
                     (ROOT / 'board/uav_record.sh', Path('/opt/uav-switch/uav_record.sh')),
                     (ROOT / 'board/uav_record.sh', Path('/usr/local/bin/uav-record')),
+                    (ROOT / 'board/lidar_record.py', Path('/opt/uav-switch/lidar_record.py')),
+                    (ROOT / 'board/uav_lidar_record.sh', Path('/opt/uav-switch/uav_lidar_record.sh')),
+                    (ROOT / 'board/uav_lidar_record.sh', Path('/usr/local/bin/uav-lidar-record')),
+                    (ROOT / 'board/uav-lidar-record.service', Path('/etc/systemd/system/uav-lidar-record.service')),
                     (ROOT / 'board/uav-record@.service', Path('/etc/systemd/system/uav-record@.service'))]
     for source, target in destinations:
         if target.exists() or target.is_symlink():
@@ -29,8 +33,9 @@ def install():
             if target.exists():
                 continue
             shutil.copy2(source, target); created.append(target)
-            target.chmod(0o755 if target.name in ('uav-record', 'uav_record.sh') else 0o644)
-        subprocess.run(['systemd-analyze', 'verify', '/etc/systemd/system/uav-record@.service'], check=True)
+            target.chmod(0o755 if target.name in ('uav-record', 'uav_record.sh', 'uav-lidar-record', 'uav_lidar_record.sh') else 0o644)
+        subprocess.run(['systemd-analyze', 'verify', '/etc/systemd/system/uav-record@.service',
+                        '/etc/systemd/system/uav-lidar-record.service'], check=True)
         subprocess.run(['systemctl', 'daemon-reload'], check=True)
     except BaseException:
         for path in reversed(created):

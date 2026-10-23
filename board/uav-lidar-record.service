@@ -1,0 +1,23 @@
+[Unit]
+Description=On-demand E1X raw lidar recording
+After=network.target
+RequiresMountsFor=/data
+ConditionPathIsMountPoint=/data
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/uav-switch/lidar_record.py worker
+Restart=no
+KillMode=mixed
+TimeoutStopSec=15
+Nice=10
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+StandardOutput=journal
+StandardError=journal
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=10
+
+# Deliberately no [Install]: acquisition never starts at boot.

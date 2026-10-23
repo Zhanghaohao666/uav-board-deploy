@@ -1,0 +1,105 @@
+--- a/apps/tools/get_pcd/get_pcd.cpp
++++ b/apps/tools/get_pcd/get_pcd.cpp
+@@ -21,6 +21,7 @@
+ #include <algorithm>
+ #include <atomic>
+ #include <condition_variable>
++#include <csignal>
+ #include <ctime>
+ #include <fstream>
+ #include <iomanip>
+@@ -47,6 +48,12 @@
+ static bool filename_with_timestamp = false;
+ static int  g_lidar_handle = -1;
+ static int force_vehicle_coordinate = 0;
++// The handler only stores a signal-safe request. Normal SDK threads perform cleanup.
++static volatile std::sig_atomic_t uav_stop_signal = 0;
++static std::atomic_bool uav_stop_at_frame_boundary{false};
++static void uav_request_stop(int signum) {
++  uav_stop_signal = signum;
++}
+ /***********************
+  * class RingBuffer
+  ***********************/
+@@ -889,6 +896,14 @@
+     done_ = true;
+   }
+ 
++  // Call only after inno_lidar_stop(): no callback may still append to the writer.
++  void finish_recording() {
++    if (file_recorder_) {
++      delete file_recorder_;
++      file_recorder_ = NULL;
++    }
++  }
++
+   void async_set_done(int sleep_sec) {
+     std::thread([&]() {
+       std::this_thread::sleep_for(std::chrono::seconds(sleep_sec));
+@@ -1053,6 +1068,14 @@
+ 
+     static uint64_t cur_frame_id = 0;
+     static uint32_t cur_frame_point = 0;
++    static bool have_seen_frame = false;
++    if (uav_stop_signal != 0 && (!have_seen_frame || cur_frame_id != pkt->idx)) {
++      // Exclude the next frame entirely so the current recorded frame can finish.
++      uav_stop_at_frame_boundary.store(have_seen_frame);
++      reinterpret_cast<ExampleProcessor *>(ctx)->set_done();
++      return 0;
++    }
++    have_seen_frame = true;
+     if (reinterpret_cast<ExampleProcessor *>(ctx)->get_recorder_(pkt->idx, pkt->use_reflectance,
+                                                                  pkt->common.ts_start_us / kUsInSecond) &&
+         !reinterpret_cast<ExampleProcessor *>(ctx)->latency_file_.empty()) {
+@@ -1688,6 +1711,8 @@
+  * main()
+  ***********************/
+ int main(int argc, char **argv) {
++  std::signal(SIGINT, uav_request_stop);
++  std::signal(SIGTERM, uav_request_stop);
+   if (argc == 1) {
+     usage(argv[0]);
+     exit(0);
+@@ -1954,6 +1979,7 @@
+ 
+   int ret;
+   print_api();
++  inno_log_info("UAV_GRACEFUL_STOP_VERSION=1");
+ 
+   /***********************
+    * set debug level
+@@ -2114,7 +2140,22 @@
+   /***********************
+    * wait until processor is done
+    ***********************/
++  bool stop_wait_started = false;
++  std::chrono::steady_clock::time_point stop_wait_start;
+   while (!processor.is_done()) {
++    if (uav_stop_signal != 0) {
++      const auto now = std::chrono::steady_clock::now();
++      if (!stop_wait_started) {
++        stop_wait_started = true;
++        stop_wait_start = now;
++        inno_log_info("UAV_RECORD_STOP_REQUESTED signal=%d", static_cast<int>(uav_stop_signal));
++      } else if (now - stop_wait_start >= std::chrono::seconds(2)) {
++        // Missing/disconnected input cannot supply the next frame boundary.
++        // Preserve and drain received packets, while marking the final frame uncertain.
++        inno_log_warning("UAV_RECORD_STOP_TIMEOUT no_next_frame_boundary=1");
++        processor.set_done();
++      }
++    }
+     std::this_thread::sleep_for(std::chrono::milliseconds(10));
+     if (max_distance) {
+       inno_lidar_set_attribute_string(handle, "vehicle_speed", std::to_string(vehicle_speed).c_str());
+@@ -2126,6 +2167,11 @@
+    ***********************/
+   ret = inno_lidar_stop(handle);
+   inno_log_verify(ret == 0, "stop failed %d", ret);
++  processor.finish_recording();
++  if (uav_stop_signal != 0) {
++    inno_log_info("UAV_RECORD_STOPPED signal=%d frame_boundary=%d writer_drained=1",
++                  static_cast<int>(uav_stop_signal), uav_stop_at_frame_boundary.load() ? 1 : 0);
++  }
+ 
+   /***********************
+    * close lidar handle
