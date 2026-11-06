@@ -1,68 +1,92 @@
-# RK3588 主控与算法板完整一键部署
+# 无人机主控、算法板、云台三套部署
 
-v1.6.0 用于**已经刷好同型号厂家完整 RK3588 ARM64 BSP 的新板**。不替代烧录镜像，不替换内核或相机驱动，也不用于 RK3576 云台。
+当前交付版本：**v1.7.0（2026-11-06）**。面向已经烧录同型号厂家完整镜像的设备，安装应用、模型、运行库、网络配置和开机启动。不会刷写内核、格式化硬盘或克隆硬件身份。
 
-## 在线安装
+| 独立安装包 | 设备及内容 | 离线安装入口 |
+| --- | --- | --- |
+| `uav-mainboard-deploy-v1.7.0.tar.gz` | RK3588 主控：下视 MIPI、D455i、视频/控制转发、高清/低清、板端视频和 E1X 点云录制、日志、方案切换与自启 | `sudo bash install-main.sh --offline` |
+| `uav-algorithm-deploy-v1.7.0.tar.gz` | RK3588 算法板：当前检测跟踪程序、模型和动态库，两路前视和 Mino17 红外、按需低清、静态板间 IP 与独立自启 | `sudo bash install-algorithm.sh --offline` |
+| `uav-gimbal-deploy-v1.7.0.tar` | RK3576 云台：新旧硬件对应程序、模型和运行库，可见光/红外、按需低清、TCP 控制、原厂/华科切换与自启 | root 登录后 `sh install.sh --profile auto` |
 
-在新板终端执行（保留终端供交互选择）：
+三套包及校验值在 [v1.7.0 发布页](https://github.com/Zhanghaohao666/uav-board-deploy/releases/tag/v1.7.0)。运行包直接包含所需业务程序；新板不需要重新编译算法。
+
+## 在线一键安装
+
+主控板执行：
 
 ```bash
-curl -fL https://raw.githubusercontent.com/Zhanghaohao666/uav-board-deploy/v1.6.0/bootstrap.sh -o /tmp/uav-bootstrap.sh && bash /tmp/uav-bootstrap.sh --repo Zhanghaohao666/uav-board-deploy --ref v1.6.0
+curl -fL https://raw.githubusercontent.com/Zhanghaohao666/uav-board-deploy/v1.7.0/bootstrap.sh -o /tmp/uav-bootstrap.sh && bash /tmp/uav-bootstrap.sh --repo Zhanghaohao666/uav-board-deploy --ref v1.7.0 --role main
 ```
 
-选择“主控板”或“完整算法板”，再按提示选择网口与部署方案。也可在命令末尾添加 `--role main` 或 `--role algorithm`。
-
-| 安装角色 | 安装内容 |
-| --- | --- |
-| 主控板 | 下视 MIPI、D455i 彩色视频、载荷视频转发、控制转发、单路/多路预览支持、视频和雷达按需录像接口、方案切换及开机自启 |
-| 完整算法板 | 已验证的检测跟踪程序、所需模型与动态库、两路前视及 Mino17 红外独立推流、低码率预览分支、固定板间 IP 与独立自启服务 |
-
-算法运行包由安装器下载并校验 SHA256；不需要手动复制静态库或重新编译算法。运行程序已经链接算法库，安装器不修改算法逻辑。仅需原始视频的特殊场景仍可使用 `--role algorithm-video`，它不包含检测跟踪。
-
-## 网口与存储
-
-- 主控支持算法板单网口、云台单网口、双网口并行测试；根据实际接线选择，不能照抄其他板子的 USB 网卡名。
-- 主控 MK22 默认地址 `192.168.2.36/24`；算法板板间地址默认 `192.168.10.2/24`，主控对应 `192.168.10.1/24`。同一网络多块主控必须使用不同地址。
-- 雷达默认使用专用 J16/`eth1`，主机地址 `172.168.1.100/24`、雷达 `172.168.1.10`。安装器保留该接口，禁止与 MK22/载荷网口重复分配。型号映射不同可指定 `--lidar-iface`；不用雷达可加 `--without-lidar`。
-- 雷达采集工具随包提供，**不需要用户另装厂家 SDK**。开机只配置网络，不自动采集；插好、供电后由地面站按需开始/停止录制。
-- 优先复用独立数据盘。尚未挂载时可明确选择已有 ext4 分区 UUID；不格式化，不把系统盘目录冒充数据盘。主控录像默认 `/data/uav-recordings`，雷达默认 `/data/uav-lidar`。
-- 日志迁到数据盘，设置容量限制与每 10 分钟轮转。保留原日志；发现仍被旧进程持有的日志会单独处理或报告。
-
-## 本地及离线安装
-
-从 [v1.6.0 发布页](https://github.com/Zhanghaohao666/uav-board-deploy/releases/tag/v1.6.0) 下载 `uav-board-deploy-offline-v1.6.0.tar.gz`，其中包含脚本、雷达工具和算法运行包：
+算法板执行：
 
 ```bash
-tar -xzf uav-board-deploy-offline-v1.6.0.tar.gz
-cd uav-board-deploy
-sudo bash deploy.sh --offline
+curl -fL https://raw.githubusercontent.com/Zhanghaohao666/uav-board-deploy/v1.7.0/bootstrap.sh -o /tmp/uav-bootstrap.sh && bash /tmp/uav-bootstrap.sh --repo Zhanghaohao666/uav-board-deploy --ref v1.7.0 --role algorithm
 ```
 
-离线模式不访问软件源；若厂家镜像缺少必要系统软件包，会列出缺项并停止，需要提前联网补齐。离线包并不是完整操作系统镜像。
+云台执行（以 root 登录；原厂 Buildroot 不需要 Python）：
 
-普通源码包 `uav-board-deploy.tar.gz` 不包含算法运行归档；可联网使用 `sudo bash deploy.sh`，或另下载同一版本的 `uav-algorithm-runtime-v1.6.0.tar.gz` 放进 `runtime/`。不用直接运行旧 `install.sh` 代替完整部署入口。
+```sh
+wget -O /tmp/uav-gimbal-bootstrap.sh https://raw.githubusercontent.com/Zhanghaohao666/uav-board-deploy/v1.7.0/gimbal/bootstrap.sh && sh /tmp/uav-gimbal-bootstrap.sh --profile auto
+```
 
-## 检查与日常维护
+云台也可使用通用 `bootstrap.sh --repo Zhanghaohao666/uav-board-deploy --ref v1.7.0 --role gimbal`，该角色在 Python 检查之前转入独立 shell 安装器。下载和校验失败不启动安装。无法联网的设备请在电脑下载对应完整包，再上传板子解压安装。
+
+## 离线安装
+
+先校验发布页 `SHA256SUMS`，各包解压后进入对应目录运行：
 
 ```bash
-sudo bash deploy.sh --role main --doctor
-sudo bash deploy.sh --role algorithm --doctor
+# 主控
+ tar -xzf uav-mainboard-deploy-v1.7.0.tar.gz
+ cd uav-mainboard-deploy
+ sudo bash install-main.sh --offline
+```
+
+算法板同理解压算法包，运行 `sudo bash install-algorithm.sh --offline`。算法包已经内置算法运行归档。主控包已内置 E1X 厂家采集工具，无需另外下载 SDK 源码。
+
+云台使用未压缩 tar，以兼容不带 gzip 的厂家固件：
+
+```sh
+tar -xf uav-gimbal-deploy-v1.7.0.tar
+cd uav-gimbal-deploy
+sh install.sh --profile auto --check
+sh install.sh --profile auto
+```
+
+云台 `--profile old` 对应 IMX290/CamID 2 + Mino17，`--profile new` 对应 IMX214/CamID 0 + HIK 红外。保留本机原厂 IQ、硬件证书、序列号、SSH 主机密钥和已有标定。未知型号先停止并检查，不能把其他 SoC 或相机强行当成这些型号。
+
+离线安装不会访问 apt 源；厂家镜像缺少系统依赖时会列出缺项。可提前联网补齐依赖，再离线安装。源码压缩包 `uav-board-deploy.tar.gz` 不含算法/云台大运行库，不能代替三套完整包。
+
+## 接线、地址和存储
+
+- 主控支持算法板单网口、云台单网口、双网口并行。主控板间口默认 `eth0`，安装时按实际网卡选择，不能照抄旧板的 USB 网卡名。
+- MK22：主控 `192.168.2.36/24`；算法板：`192.168.10.2/24`，主控对应 `192.168.10.1/24`。
+- 云台：`192.168.144.108/24`，主控对应 `192.168.144.1/24`。同 IP 的两台云台不可直接并入同一个二层网络。
+- E1X：专用 J16/`eth1`，主机 `172.168.1.100/24`，雷达 `172.168.1.10:8010`。该端口不与 MK22/载荷共用。可指定 `--lidar-iface`；不用雷达时主控加 `--without-lidar`。
+- 必须准备独立数据盘；安装器不格式化。主控 `/data/uav-recordings` 保存视频，`/data/uav-lidar` 保存点云，算法程序/模型/日志位于选定数据盘，云台运行库及限容日志位于 `/data/uav-gimbal`。
+- 录像、点云均按需启动，开机不会自动录制。缺席相机独立等待，不阻止其他路。
+
+## 一键切换和日常维护
+
+主控本机或地面站 SSH 终端：
+
+```bash
 sudo uav-switch
-sudo uav-algorithm status
 ```
 
-前两项为预检查；后两项分别在安装完成的主控、算法板运行。主控方案菜单可查看状态、视频地址及重启服务；算法板可用 `sudo uav-algorithm restart algorithm` 重启检测跟踪。
+菜单：1 算法板单口，2 云台单口，3 双网口并行，4 当前状态和流地址，5 逐路出图验证，6 保存开机默认。切换方案需按实际接线确认；查看状态不停止视频。地面站方案按钮只切拉流地址，不替代板端网络/服务模式切换。
 
-`--no-start` 保存应用自启配置但本次不启动应用；存储和日志准备立即生效。相机缺席时对应服务等待，不连带停止其他路。已有部署会检查安装记录和配置；不兼容的旧部署拒绝覆盖，避免抢相机和端口。
+电脑端同一工具在 `pc/`，另提供 `uav-pc-switch-v1.7.0.zip`：安装 Python/paramiko 后运行 `python start_full_link.py`，可指定主控 IP、查看状态、切方案和保存开机模式。它不会重新启动旧版整链路转发脚本。
 
-## 验证范围与详细文档
+算法板：`sudo uav-algorithm status`、`sudo uav-algorithm restart algorithm`。云台：`uav-gimbal status`、`uav-gimbal restart`、`uav-gimbal hust`、`uav-gimbal factory`。云台可见光 `/live/0`、红外 `/live/1` 均位于 RTSP 554，控制 TCP 9000。
 
-已做安装逻辑、冲突保护、回滚及独立服务自动化测试，并在现有 ARM64 板只读核对算法运行包依赖和雷达工具。没有对现用板执行完整重装；新镜像首次安装后，仍应逐路出图并重启验收。风扇和传感器驱动属于厂家镜像，不能凭安装成功断言硬件全部正常。
+## 版本、核验与已知问题
 
-- [完整算法安装细节](algorithm/FULL_DEPLOYMENT.md)
-- [算法视频与兼容工具](algorithm/README.md)
-- [视频低码率预览](docs/adaptive-streams.md)
-- [雷达按需录制](docs/lidar-recording.md)
-- [历史主控底层安装入口](docs/legacy-main-install.md)（保留参考，新板优先使用本页 `deploy.sh`）
-- [版本变更](CHANGELOG.md)
-- [配套地面站](https://github.com/Zhanghaohao666/uav-ground-station)
+主控/算法板程序从 2026-11-06 现场文件核对；本次算法运行归档包含更新后的 `tracker_worker`，不是重复使用旧归档。新旧云台分别保留已验证的二进制及模型/依赖校验值。设备凭据、录像、激活签发私钥和硬件证书不进入公开包。
+
+验证包括安装器回归、备份与回退、包内 SHA256、真实 ARM64 依赖预检及当前设备既有出图记录。没有对正在使用的主控/算法板执行破坏性重装，也没有把模拟文件系统安装当作新硬件整机验收。
+
+**当前算法板在本次发布前出现过内核内存/页表异常和 RGA 提交失败，曾导致板间失联，断电重启后视频恢复；本次归档期间在无人操作、持续供电时再次失联，具体触发原因尚未确定。此版本归档现场程序和安装环境，没有更换/修复厂家内核，不能承诺安装包解决该内核故障。** 新设备安装后需逐路出图、重启及持续运行验收；新云台转动方向、速度、限位与重捕获效果仍须实物标定。
+
+详细文档：[算法板](algorithm/FULL_DEPLOYMENT.md)、[云台](gimbal/README.md)、[低清预览](docs/adaptive-streams.md)、[雷达录制](docs/lidar-recording.md)、[发布验证记录](docs/validation-v1.7.0.md)、[版本记录](CHANGELOG.md)、[配套地面站](https://github.com/Zhanghaohao666/uav-ground-station)。

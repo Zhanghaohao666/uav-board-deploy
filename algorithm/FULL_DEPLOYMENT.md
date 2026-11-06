@@ -6,7 +6,7 @@
 
 ## 离线运行包
 
-完整发布包包含 `runtime/uav-algorithm-runtime-v1.6.0.tar.gz`，摘要固定在 `algorithm/runtime-release.json`。运行包根目录含 `runtime-manifest.json`；每个文件有 SHA256、大小、权限，安装前既检查外层压缩包摘要，也检查解压后的每个文件。不允许路径穿越、软链接、硬链接、特殊文件、未列入清单的文件。
+完整发布包包含 `runtime/uav-algorithm-runtime-v1.7.0.tar.gz`，摘要固定在 `algorithm/runtime-release.json`。运行包根目录含 `runtime-manifest.json`；每个文件有 SHA256、大小、权限，安装前既检查外层压缩包摘要，也检查解压后的每个文件。不允许路径穿越、软链接、硬链接、特殊文件、未列入清单的文件。
 
 运行包包括：
 

@@ -1,0 +1,13 @@
+#!/bin/sh
+# Keep factory addresses and routes; ensure the application LAN is present.
+case "${1:-start}" in
+    start|restart)
+        ip link set eth0 up
+        if ! ip -4 addr show dev eth0 | grep -q 'inet 192.168.144.108/24'; then
+            ip addr add 192.168.144.108/24 dev eth0
+        fi
+        ;;
+    stop) : ;; # Never remove a management address during shutdown/service stop.
+    status) ip -4 addr show dev eth0 ;;
+    *) echo "Usage: $0 {start|stop|restart|status}" >&2; exit 2 ;;
+esac

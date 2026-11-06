@@ -6,6 +6,10 @@ board/config.json
 *.zip
 *.log
 /runtime/
+/gimbal/runtime/
+/gimbal/PAYLOAD.sha256
+/gimbal/VERSION
+*.tar
 *.part
 algorithm/mino17-source/test_unpack
 algorithm/mino17-source/*.o

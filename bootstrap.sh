@@ -14,8 +14,8 @@ while (($#)); do
     esac
 done
 case "$role" in
-    ''|main|algorithm|algorithm-video) installer=deploy.sh ;;
-    *) echo '角色必须为 main、algorithm 或 algorithm-video' >&2; exit 2 ;;
+    ''|main|algorithm|algorithm-video|gimbal) installer=deploy.sh ;;
+    *) echo '角色必须为 main、algorithm、algorithm-video 或 gimbal' >&2; exit 2 ;;
 esac
 if [[ ! "$repo" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || [[ ! "$ref" =~ ^[A-Za-z0-9_.-]+$ ]]; then
     echo '用法：bootstrap.sh --repo OWNER/REPOSITORY [--ref COMMIT_OR_TAG] [安装参数]' >&2
@@ -23,6 +23,16 @@ if [[ ! "$repo" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || [[ ! "$ref" =~ ^[A-Za
 fi
 bundle_tmp="$(mktemp -d)"
 trap 'rm -rf -- "$bundle_tmp"' EXIT
+if [[ "$role" == gimbal ]]; then
+    url="https://raw.githubusercontent.com/$repo/$ref/gimbal/bootstrap.sh"
+    if command -v curl >/dev/null; then
+        curl --fail --location --proto '=https' --tlsv1.2 --retry 3 "$url" -o "$bundle_tmp/gimbal.sh"
+    else
+        wget -O "$bundle_tmp/gimbal.sh" "$url"
+    fi
+    sh "$bundle_tmp/gimbal.sh" "$@"
+    exit $?
+fi
 curl --fail --location --proto '=https' --tlsv1.2 --retry 3 \
     "https://codeload.github.com/$repo/tar.gz/$ref" -o "$bundle_tmp/bundle.tar.gz"
 python3 - "$bundle_tmp" <<'PY'

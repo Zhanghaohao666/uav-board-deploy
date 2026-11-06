@@ -1,0 +1,14 @@
+#!/bin/sh
+case "${1:-status}" in
+    start|stop|restart) exec /home/start_tracker.sh "$1" ;;
+    status) /home/switch_app.sh status; exec "$0" urls ;;
+    hust|factory) exec /home/switch_app.sh "$1" ;;
+    urls)
+        echo 'RGB: rtsp://192.168.144.108:554/live/0'
+        echo 'IR:  rtsp://192.168.144.108:554/live/1'
+        echo 'TCP control: 192.168.144.108:9000'
+        echo 'Low RGB: RTP 6612, request UDP 15612; low IR: RTP 6610, request UDP 15610'
+        echo 'Preview peer: 192.168.144.1; log: /data/uav-gimbal/logs/tracker.log'
+        ;;
+    *) echo "Usage: $0 {status|urls|start|stop|restart|hust|factory}" >&2; exit 2 ;;
+esac

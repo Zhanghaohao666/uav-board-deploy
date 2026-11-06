@@ -1,0 +1,112 @@
+#!/bin/sh
+# BusyBox init entry. Keep manual and boot startup on the same locked path.
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+APP=/home/hust_tracker_3576
+PIDFILE=/run/hust_tracker.pid
+LOG=/data/uav-gimbal/logs/tracker.log
+[ ! -r /etc/cfg/uav-gimbal.env ] || . /etc/cfg/uav-gimbal.env
+case "${UAV_GIMBAL_CAMERA_ID:-}" in 0|1|2|3) ;; *) echo "Missing/invalid /etc/cfg/uav-gimbal.env" >&2; exit 1 ;; esac
+# New unit: IMX214 CamID 0, HIK thermal USB 2bdf:0102.
+export LD_LIBRARY_PATH=/data/uav-gimbal/current/lib:/home/lib:/data/libs/RK3576_ThirdLibs/lib:/data/libs/RK3576_Glibc200_Libs/lib
+# On-demand low previews; keep the current HD/algorithm paths.
+# HUST_RGB_SOURCE_FPS is profile-specific in /etc/cfg/uav-gimbal.env.
+export UAV_LOW_ENABLE=1
+export UAV_LOW_BIND=192.168.144.108
+export UAV_LOW_PEER=192.168.144.1
+export UAV_LOW_CPUS=0-3
+
+tracker_pids() {
+    for proc in /proc/[0-9]*/exe; do
+        target=$(readlink "$proc" 2>/dev/null) || continue
+        case "$target" in
+            "$APP"|"$APP (deleted)")
+                pid=${proc#/proc/}; echo "${pid%/exe}" ;;
+        esac
+    done
+}
+
+start_tracker() {
+    mode=$(cat /etc/cfg/hust-app-mode 2>/dev/null || echo hust)
+    if [ "$mode" != hust ]; then echo "hust_tracker: selected mode is $mode; not starting"; return 0; fi
+    pids=$(tracker_pids)
+    if [ -n "$pids" ]; then
+        echo "$pids" > "$PIDFILE"
+        echo "hust_tracker already running: $pids"
+        return 0
+    fi
+    ready=0
+    while [ "$ready" -lt 30 ]; do
+        if [ -x "$APP" ] && [ -d /home/iqfiles ] &&
+           [ -d /data/uav-gimbal/current/lib ] && [ -c /dev/video0 ]; then
+            break
+        fi
+        ready=$((ready + 1))
+        sleep 1
+    done
+    if [ "$ready" -ge 30 ]; then
+        echo 'hust_tracker: required files or camera unavailable' >&2
+        return 1
+    fi
+    mkdir -p /data/uav-gimbal/logs
+    /home/tracker_npu_policy.sh apply || echo "hust_tracker: NPU policy unavailable; using driver defaults" >&2
+    [ ! -r /home/recap_servo.env ] || . /home/recap_servo.env
+    cd /home || return 1
+    attempt=1
+    while [ "$attempt" -le 3 ]; do
+        [ ! -f "$LOG" ] || mv -f "$LOG" "$LOG.previous"
+        # Do not inherit the service-operation lock into the application.
+        setsid "$APP" -w 1920 -h 1080 -F 30 -a /home/iqfiles/ -I "$UAV_GIMBAL_CAMERA_ID" \
+            9>&- </dev/null >>"$LOG" 2>&1 &
+        sleep 4
+        pids=$(tracker_pids)
+        if [ -n "$pids" ]; then
+            echo "$pids" > "$PIDFILE"
+            /home/uav_gimbal_log_guard.sh "$pids" 9>&- </dev/null >/dev/null 2>&1 &
+            echo $! > /run/uav-gimbal-log-guard.pid
+            echo "hust_tracker started: $pids"
+            return 0
+        fi
+        echo "hust_tracker startup attempt $attempt failed; see $LOG" >&2
+        attempt=$((attempt + 1))
+        sleep 2
+    done
+    rm -f "$PIDFILE"
+    /home/tracker_npu_policy.sh restore || true
+    return 1
+}
+
+stop_tracker() {
+    pids=$(tracker_pids)
+    if [ -n "$pids" ]; then
+        for pid in $pids; do kill -TERM "$pid" 2>/dev/null || true; done
+        count=0
+        while [ "$count" -lt 10 ] && [ -n "$(tracker_pids)" ]; do
+            sleep 1
+            count=$((count + 1))
+        done
+        for pid in $(tracker_pids); do kill -KILL "$pid" 2>/dev/null || true; done
+        sleep 1
+    fi
+    if [ -n "$(tracker_pids)" ]; then
+        echo 'hust_tracker did not stop' >&2
+        return 1
+    fi
+    /home/tracker_npu_policy.sh restore || true
+    rm -f "$PIDFILE"
+    echo 'hust_tracker stopped'
+}
+
+mkdir -p /run
+exec 9>/run/hust_tracker-control.lock
+flock -x 9 || exit 1
+case "${1:-start}" in
+    start) start_tracker ;;
+    stop) stop_tracker ;;
+    restart) stop_tracker && start_tracker ;;
+    status)
+        pids=$(tracker_pids)
+        if [ -n "$pids" ]; then echo "hust_tracker running: $pids";
+        else echo 'hust_tracker stopped'; exit 3; fi ;;
+    *) echo "Usage: $0 {start|stop|restart|status}" >&2; exit 2 ;;
+esac
