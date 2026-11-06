@@ -2,11 +2,13 @@
 
 前提是已经刷好匹配的厂家 RK3588 镜像，相机媒体链路、MPP/RGA、NPU 驱动、USB 串口等底层功能由厂家镜像提供。本入口安装现在已验证的应用程序、模型、匹配动态库和启动配置；它不替换内核/驱动，也不重新编译算法。
 
+v1.7.1 要求镜像提供 `/dev/dma_heap/system-dma32` 或 `system-uncached-dma32`，以及 RGA3 双核和当前版本的 librga API。推流仅提交导入的 DMA32 句柄，并指定 RGA3，避免现场旧 RGA2 路径触发内核异常。不满足条件时停止安装/停止相关硬件分支，不回退到普通内存。检测跟踪 worker、模型和画框算法未修改。已有板不能把新板安装器当作强制覆盖工具，应安排备份与维护更新。
+
 推荐使用仓库统一安装入口的 **完整算法板** 角色，先检查/挂载数据分区、设置日志容量上限，再执行本安装器。`algorithm/install.py` 保留为 **纯视频** 入口，不含检测跟踪。
 
 ## 离线运行包
 
-完整发布包包含 `runtime/uav-algorithm-runtime-v1.7.0.tar.gz`，摘要固定在 `algorithm/runtime-release.json`。运行包根目录含 `runtime-manifest.json`；每个文件有 SHA256、大小、权限，安装前既检查外层压缩包摘要，也检查解压后的每个文件。不允许路径穿越、软链接、硬链接、特殊文件、未列入清单的文件。
+完整发布包包含 `runtime/uav-algorithm-runtime-v1.7.1.tar.gz`，摘要固定在 `algorithm/runtime-release.json`。运行包根目录含 `runtime-manifest.json`；每个文件有 SHA256、大小、权限，安装前既检查外层压缩包摘要，也检查解压后的每个文件。不允许路径穿越、软链接、硬链接、特殊文件、未列入清单的文件。
 
 运行包包括：
 

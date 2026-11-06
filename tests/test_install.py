@@ -1,4 +1,5 @@
-import copy, importlib.util, json, subprocess, tempfile, unittest
+import copy, importlib.util, json, stat, subprocess, tempfile, unittest
+from types import SimpleNamespace
 from pathlib import Path
 from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
@@ -8,6 +9,14 @@ C=json.loads((ROOT/'config.example.json').read_text())
 def iface(name,*addresses):
  return dict(ifname=name,flags=['UP'],link_type='ether',addr_info=[dict(family='inet',local=a.split('/')[0],prefixlen=int(a.split('/')[1])) for a in addresses])
 class InstallerTests(unittest.TestCase):
+ def test_dma32_required_not_generic_heap(self):
+  with tempfile.TemporaryDirectory() as temp:
+   root=Path(temp);(root/'system').touch();(root/'system-dma32').touch()
+   with self.assertRaisesRegex(ValueError,'DMA32'):m.dma32_check(root)
+   with patch.object(Path,'stat',return_value=SimpleNamespace(st_mode=stat.S_IFCHR)),patch.object(m.os,'access',return_value=True):
+    m.dma32_check(root)
+   with patch.object(Path,'stat',return_value=SimpleNamespace(st_mode=stat.S_IFCHR)),patch.object(m.os,'access',return_value=False):
+    with self.assertRaisesRegex(ValueError,'DMA32'):m.dma32_check(root)
  def test_same_interface_rejected(self):
   c=copy.deepcopy(C);c['mk22_iface']=c['payload_iface']
   with self.assertRaises(ValueError):m.validate_config(c)

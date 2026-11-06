@@ -1,13 +1,13 @@
 # RK3576 新旧云台完整部署
 
-v1.7.0 面向已烧录匹配厂家 Buildroot 镜像的 RK3576 云台。普通 RK3588 主控/算法板不能使用此安装器。
+v1.7.1 面向已烧录匹配厂家 Buildroot 镜像的 RK3576 云台。普通 RK3588 主控/算法板不能使用此安装器。
 
 ## 下载与安装
 
-从统一仓库 v1.7.0 发布页下载 `uav-gimbal-deploy-v1.7.0.tar`，上传云台：
+从统一仓库 v1.7.1 发布页下载 `uav-gimbal-deploy-v1.7.1.tar`，上传云台：
 
 ```sh
-tar -xf uav-gimbal-deploy-v1.7.0.tar
+tar -xf uav-gimbal-deploy-v1.7.1.tar
 cd uav-gimbal-deploy
 sh install.sh --profile auto --check
 sh install.sh --profile auto

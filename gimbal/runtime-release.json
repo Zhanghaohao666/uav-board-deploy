@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "version": "v1.7.0",
-  "file": "uav-gimbal-deploy-v1.7.0.tar",
-  "sha256": "96b22c17f57e5dfc727bb87dc13c732938e7c01160f52fede5eb4be91f456004",
+  "version": "v1.7.1",
+  "file": "uav-gimbal-deploy-v1.7.1.tar",
+  "sha256": "d7a0c72e8766fc2c36f4002dab83c0581d255126b91d60c99a193268baaa873e",
   "bytes": 113192960,
-  "url": "https://github.com/Zhanghaohao666/uav-board-deploy/releases/download/v1.7.0/uav-gimbal-deploy-v1.7.0.tar"
+  "url": "https://github.com/Zhanghaohao666/uav-board-deploy/releases/download/v1.7.1/uav-gimbal-deploy-v1.7.1.tar"
 }

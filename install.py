@@ -14,6 +14,7 @@ import pwd
 import re
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import time
@@ -60,6 +61,20 @@ def verify_manifest():
         raise ValueError('校验清单缺少程序文件')
 
 
+def dma32_check(directory=Path('/dev/dma_heap')):
+    # RGA2 cannot address arbitrary RAM above 4 GiB. Never substitute a
+    # generic system/CMA heap when the image lacks the constrained heap.
+    for name in ('system-dma32', 'system-uncached-dma32'):
+        path = directory / name
+        try:
+            if stat.S_ISCHR(path.stat().st_mode) and os.access(path, os.R_OK | os.W_OK):
+                return
+        except OSError:
+            continue
+    raise ValueError('缺少可读写的 DMA32 图像缓冲设备（/dev/dma_heap/system-dma32 或 '
+                     'system-uncached-dma32）；请使用匹配 BSP，不能回退到普通内存推流')
+
+
 def platform_check():
     if os.uname().machine not in ('aarch64', 'arm64'):
         raise ValueError('仅支持 RK3588 ARM64 主控/下视板，不能在电脑或 RK3576 云台上安装')
@@ -68,6 +83,7 @@ def platform_check():
         raise ValueError('没有识别到 RK3588 BSP')
     if not Path('/run/systemd/system').is_dir():
         raise ValueError('需要 systemd 系统')
+    dma32_check()
 
 
 def choose(label, choices, specified=None, preferred=None, interactive=True):

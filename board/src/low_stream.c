@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 #include "low_stream.h"
+#include "rga_safe.h"
 #include "mpp_encoder.h"
 #include "rtp_sender.h"
 #include <arpa/inet.h>
@@ -50,18 +51,14 @@ static void affinity(void) {
 }
 static int scale_nv12(LowStream *s, void *src, void *dst, void *rgb_small) {
     int fmt=s->rgb==2?RK_FORMAT_BGR_888:s->rgb?RK_FORMAT_RGB_888:RK_FORMAT_YCbCr_420_SP;
-    rga_buffer_t a=wrapbuffer_virtualaddr(src,s->width,s->height,fmt);
-    rga_buffer_t b=wrapbuffer_virtualaddr(dst,s->low_w,s->low_h,RK_FORMAT_YCbCr_420_SP);
-    a.wstride=s->width; a.hstride=s->height;
-    b.wstride=s->low_w; b.hstride=s->low_h;
-    IM_STATUS rc;
+    UavRgaLayout input={s->width,s->height,s->width,s->height,fmt};
+    UavRgaLayout output={s->low_w,s->low_h,s->low_w,s->low_h,RK_FORMAT_YCbCr_420_SP};
     if(s->rgb) {
-        rga_buffer_t rgb=wrapbuffer_virtualaddr(rgb_small,s->low_w,s->low_h,fmt);
-        rc=imresize(a,rgb);
-        if(rc!=IM_STATUS_SUCCESS && rc!=IM_STATUS_NOERROR)return -1;
-        rc=imcvtcolor(rgb,b,fmt,RK_FORMAT_YCbCr_420_SP,IM_RGB_TO_YUV_BT601_FULL);
-    } else rc=imresize(a,b);
-    return rc==IM_STATUS_SUCCESS || rc==IM_STATUS_NOERROR ? 0 : -1;
+        UavRgaLayout middle=output;middle.format=fmt;
+        if(uav_rga_run(src,input,rgb_small,middle,UAV_RGA_RESIZE,0,IM_COLOR_SPACE_DEFAULT))return -1;
+        return uav_rga_run(rgb_small,middle,dst,output,UAV_RGA_COLOR,0,IM_RGB_TO_YUV_BT601_FULL);
+    }
+    return uav_rga_run(src,input,dst,output,UAV_RGA_RESIZE,0,IM_COLOR_SPACE_DEFAULT);
 }
 static void clear_slot(LowStream *s) {
     __atomic_store_n(&s->wanted,0,__ATOMIC_RELEASE);
@@ -77,7 +74,7 @@ static void *worker(void *arg) {
     const size_t bytes=(size_t)s->width*s->height*(s->rgb?3:3)/(s->rgb?1:2);
     const size_t low_bytes=(size_t)s->low_w*s->low_h*3/2;
     uint64_t lease=0,retry=0,epoch=mono_us(),reported=0,frames=0;
-    int key_requested=0;
+    int key_requested=0, scale_blocked=0;
     while (__atomic_load_n(&s->running,__ATOMIC_ACQUIRE)) {
         struct pollfd fds[2]={{s->fd,POLLIN,0},{s->wake,POLLIN,0}};
         int ready=poll(fds,2,500);
@@ -97,11 +94,13 @@ static void *worker(void *arg) {
             }
         }
         uint64_t now=mono_us();
+        if(scale_blocked)continue;
         if (!lease || now-lease>=LEASE_US) {
             if(enc) {
                 clear_slot(s); enc_destroy(enc); enc=NULL;
                 rtp_close(rtp);rtp=NULL;free(work);work=NULL;free(small);small=NULL;
                 free(rgb_small);rgb_small=NULL;
+                uav_rga_release_thread();
                 fprintf(stderr,"[low %d] idle: encoder stopped after lease expiry\n",s->port);
             }
             continue;
@@ -140,8 +139,14 @@ static void *worker(void *arg) {
         pthread_mutex_unlock(&s->mutex);
         if(!frame_us || mono_us()-frame_us>200000ULL)continue;
         if(scale_nv12(s,work,small,rgb_small)) {
-            if(now-retry>=2000000ULL)fprintf(stderr,"[low %d] hardware scale failed\n",s->port);
-            retry=now;continue;
+            fprintf(stderr,"[low %d] safe scale failed; low branch disabled until process restart\n",s->port);
+            scale_blocked=1;
+            clear_slot(s);enc_destroy(enc);enc=NULL;
+            rtp_close(rtp);rtp=NULL;
+            free(work);work=NULL;free(small);small=NULL;
+            free(rgb_small);rgb_small=NULL;
+            uav_rga_release_thread();
+            continue;
         }
         if(key_requested){enc_request_keyframe(enc);key_requested=0;}
         const uint8_t *out;size_t count;int key;
@@ -158,6 +163,7 @@ static void *worker(void *arg) {
     if(enc)enc_destroy(enc);
     if(rtp)rtp_close(rtp);
     free(work);free(small);free(rgb_small);
+    uav_rga_release_thread();
     return NULL;
 }
 static LowStream *create(const char *host,int main_port,int width,int height,int rgb) {

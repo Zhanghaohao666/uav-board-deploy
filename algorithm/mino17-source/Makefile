@@ -4,8 +4,10 @@ COMMON_DIR ?= ../../board/src
 CFLAGS ?= -O2 -Wall -Wextra
 CPPFLAGS += -I/usr/include/rockchip -I$(COMMON_DIR)
 LDLIBS += -lrockchip_mpp -lrga -lpthread
-OBJECTS = mino17_streamer.o mino_unpack.o camera.o mpp_encoder.o rtp_sender.o low_stream.o
-low_stream.o: $(COMMON_DIR)/low_stream.c $(COMMON_DIR)/low_stream.h
+OBJECTS = mino17_streamer.o mino_unpack.o camera.o mpp_encoder.o rtp_sender.o low_stream.o rga_safe.o
+rga_safe.o: $(COMMON_DIR)/rga_safe.c $(COMMON_DIR)/rga_safe.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+low_stream.o: $(COMMON_DIR)/low_stream.c $(COMMON_DIR)/low_stream.h $(COMMON_DIR)/rga_safe.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 all: mino17_streamer
