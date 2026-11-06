@@ -231,6 +231,24 @@ def render_units(c):
             TEMPLATE: (ROOT / 'board' / TEMPLATE).read_text().replace('User=dev\n', 'User=' + c['service_user'] + '\n')}
 
 
+def board_camera_format_ready(device, allow_uninitialized=False):
+    result = run(['v4l2-ctl', '-d', device, '--get-fmt-video'], check=False)
+    if result.returncode:
+        return False
+    if "'NV12'" in result.stdout:
+        return True
+    # A fresh CIF node has no selected format until the first VIDIOC_S_FMT.
+    # The capture program negotiates NV12 itself at every start. Only accept
+    # this exact empty state when the driver advertises NV12, never an
+    # initialized different format or a failed device query.
+    empty = (re.search(r'Width/Height\s*:\s*0/0(?:\s|$)', result.stdout)
+             and re.search(r"Pixel Format\s*:\s*''", result.stdout))
+    if not allow_uninitialized or not empty:
+        return False
+    formats = run(['v4l2-ctl', '-d', device, '--list-formats-ext'], check=False)
+    return formats.returncode == 0 and "'NV12'" in formats.stdout
+
+
 def doctor(c):
     errors = []
     try:
@@ -261,8 +279,7 @@ def doctor(c):
                 errors.append('缺少 GStreamer 插件：' + plugin)
     if shutil.which('v4l2-ctl'):
         if Path(c['board_camera']).exists():
-            result = run(['v4l2-ctl', '-d', c['board_camera'], '--get-fmt-video'], check=False)
-            if result.returncode or "'NV12'" not in result.stdout:
+            if not board_camera_format_ready(c['board_camera'], c.get('allow_missing_cameras', False)):
                 errors.append('下视 MIPI 当前未配置为 NV12；请先完成同型号 BSP 相机初始化')
         if c['d455_enabled'] and Path(c['d455_rgb']).exists():
             result = run(['v4l2-ctl', '-d', c['d455_rgb'], '--list-formats-ext'], check=False)
@@ -284,7 +301,13 @@ def assert_fresh():
             raise ValueError('发现已有部署，保持原状：' + str(path) + '；切换请运行 uav-switch')
     # Do not compete with old boot jobs even when they happen to be stopped.
     for pattern in ('uav-video*', 'uav-gimbal*', 'uav-fixed*', 'mino17-streamer*'):
-        result = run(['systemctl', 'list-unit-files', pattern, '--no-legend', '--no-pager'])
+        result = run(['systemctl', 'list-unit-files', pattern, '--no-legend', '--no-pager'], check=False)
+        # systemd 249 returns 1 for a successful inventory with no matches.
+        # A bus/permission failure must still refuse installation.
+        empty_inventory = (result.returncode == 1 and not result.stdout.strip()
+                           and not result.stderr.strip())
+        if result.returncode and not empty_inventory:
+            raise ValueError('无法检查旧服务，未安装：' + result.stdout + result.stderr)
         if result.stdout.strip():
             raise ValueError('发现旧服务，请先迁移，不自动覆盖：' + result.stdout.strip())
 

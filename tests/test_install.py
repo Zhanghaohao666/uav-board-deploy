@@ -9,6 +9,15 @@ C=json.loads((ROOT/'config.example.json').read_text())
 def iface(name,*addresses):
  return dict(ifname=name,flags=['UP'],link_type='ether',addr_info=[dict(family='inet',local=a.split('/')[0],prefixlen=int(a.split('/')[1])) for a in addresses])
 class InstallerTests(unittest.TestCase):
+ def test_fresh_cif_format_negotiation_is_allowed(self):
+  empty=subprocess.CompletedProcess([],0,"Width/Height : 0/0\nPixel Format : ''\n",'')
+  formats=subprocess.CompletedProcess([],0,"[0]: 'NV12' (Y/CbCr 4:2:0)",'')
+  with patch.object(m,'run',side_effect=[empty,formats]):self.assertTrue(m.board_camera_format_ready('/dev/video11',True))
+  with patch.object(m,'run',return_value=empty) as call:
+   self.assertFalse(m.board_camera_format_ready('/dev/video11',False));self.assertEqual(call.call_count,1)
+ def test_bad_or_unknown_camera_format_is_rejected(self):
+  for current,formats in [(subprocess.CompletedProcess([],1,'','No such device'),None),(subprocess.CompletedProcess([],0,"Width/Height : 1280/720\nPixel Format : 'UYVY'",''),None),(subprocess.CompletedProcess([],0,"Width/Height : 0/0\nPixel Format : ''",''),subprocess.CompletedProcess([],0,"'YUYV'",'')),(subprocess.CompletedProcess([],0,"Width/Height : 0/0\nPixel Format : ''",''),subprocess.CompletedProcess([],1,"'NV12'",'device error'))]:
+   with self.subTest(current=current,formats=formats),patch.object(m,'run',side_effect=[current,formats]):self.assertFalse(m.board_camera_format_ready('/dev/video11',True))
  def test_dma32_required_not_generic_heap(self):
   with tempfile.TemporaryDirectory() as temp:
    root=Path(temp);(root/'system').touch();(root/'system-dma32').touch()
@@ -78,6 +87,18 @@ class InstallerTests(unittest.TestCase):
    with patch.object(m,'BASE',base):
     with self.assertRaisesRegex(ValueError,'已有部署'):m.assert_fresh()
    self.assertEqual(marker.read_text(),'existing')
+ def test_fresh_systemd_inventory_without_matches(self):
+  with tempfile.TemporaryDirectory() as temp:
+   root=Path(temp)
+   with patch.multiple(m,BASE=root/'opt',STATE=root/'state',LAUNCHER=root/'bin/uav-switch',UNITS=root/'units'),patch.object(m,'run',return_value=subprocess.CompletedProcess([],1,'','')) as call:
+    m.assert_fresh()
+    self.assertEqual(call.call_count,4)
+ def test_unit_inventory_failure_is_not_no_matches(self):
+  with tempfile.TemporaryDirectory() as temp:
+   root=Path(temp)
+   for result in [subprocess.CompletedProcess([],1,'','Failed to connect to bus'),subprocess.CompletedProcess([],2,'',''),subprocess.CompletedProcess([],0,'uav-video.service enabled','')]:
+    with self.subTest(result=result),patch.multiple(m,BASE=root/'opt',STATE=root/'state',LAUNCHER=root/'bin/uav-switch',UNITS=root/'units'),patch.object(m,'run',return_value=result):
+     with self.assertRaises(ValueError):m.assert_fresh()
  def test_same_install_no_restart(self):
   with patch.object(m.os,'geteuid',return_value=0),patch.object(m,'same_install',return_value=True),patch.object(m,'run') as call:
    m.install(C);call.assert_not_called()

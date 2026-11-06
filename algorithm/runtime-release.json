@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "version": "v1.7.1",
-  "file": "uav-algorithm-runtime-v1.7.1.tar.gz",
+  "version": "v1.7.2",
+  "file": "uav-algorithm-runtime-v1.7.2.tar.gz",
   "sha256": "c170c5eef5dce400fc44394116daae4698f20d8ef54806e3a66fbea98fcdd94a",
   "bytes": 25417192,
-  "url": "https://github.com/Zhanghaohao666/uav-board-deploy/releases/download/v1.7.1/uav-algorithm-runtime-v1.7.1.tar.gz"
+  "url": "https://github.com/Zhanghaohao666/uav-board-deploy/releases/download/v1.7.2/uav-algorithm-runtime-v1.7.2.tar.gz"
 }

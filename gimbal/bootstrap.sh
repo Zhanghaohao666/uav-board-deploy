@@ -1,8 +1,8 @@
 #!/bin/sh
 # Pinned role archive. SHA256 is written by the release packager.
 set -eu
-VERSION=v1.7.1
-ARCHIVE_SHA256=d7a0c72e8766fc2c36f4002dab83c0581d255126b91d60c99a193268baaa873e
+VERSION=v1.7.2
+ARCHIVE_SHA256=6f20bff52020aa1c8c9b18b74a86cff28e194a1133a55952fac4aaf3f3fea42e
 URL="https://github.com/Zhanghaohao666/uav-board-deploy/releases/download/$VERSION/uav-gimbal-deploy-$VERSION.tar"
 work=$(mktemp -d /tmp/uav-gimbal-download.XXXXXX)
 trap 'rm -rf "$work"' EXIT
